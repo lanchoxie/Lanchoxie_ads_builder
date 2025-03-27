@@ -83,7 +83,7 @@ python adsorption_gui.py
 ## 界面说明
 
 ### 主界面
-![main.png](figs/main.png)
+![main.png](molecular_adsorption/figs/main.png)
 
 主界面包含以下主要功能区域：
 1. 文件操作区：用于加载基底和分子结构
