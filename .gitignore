@@ -1,0 +1,110 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+audit.log
+
+# Local files
+*.vasp
+*.json
+*.zip
+*.txt
+!requirements.txt
+!README.md
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# 忽略所有文件
+*
+# 不忽略molecular_adsorption目录
+!molecular_adsorption/
+# 忽略molecular_adsorption目录下的__pycache__
+molecular_adsorption/**/__pycache__/
+# 忽略molecular_adsorption目录下的*.pyc文件
+molecular_adsorption/**/*.pyc
+# 忽略molecular_adsorption目录下的*.pyo文件
+molecular_adsorption/**/*.pyo
+# 忽略molecular_adsorption目录下的*.pyd文件
+molecular_adsorption/**/*.pyd
+# 忽略molecular_adsorption目录下的.Python文件
+molecular_adsorption/**/.Python
+# 忽略molecular_adsorption目录下的build目录
+molecular_adsorption/**/build/
+# 忽略molecular_adsorption目录下的develop-eggs目录
+molecular_adsorption/**/develop-eggs/
+# 忽略molecular_adsorption目录下的dist目录
+molecular_adsorption/**/dist/
+# 忽略molecular_adsorption目录下的downloads目录
+molecular_adsorption/**/downloads/
+# 忽略molecular_adsorption目录下的eggs目录
+molecular_adsorption/**/eggs/
+# 忽略molecular_adsorption目录下的.eggs目录
+molecular_adsorption/**/.eggs/
+# 忽略molecular_adsorption目录下的lib目录
+molecular_adsorption/**/lib/
+# 忽略molecular_adsorption目录下的lib64目录
+molecular_adsorption/**/lib64/
+# 忽略molecular_adsorption目录下的parts目录
+molecular_adsorption/**/parts/
+# 忽略molecular_adsorption目录下的sdist目录
+molecular_adsorption/**/sdist/
+# 忽略molecular_adsorption目录下的var目录
+molecular_adsorption/**/var/
+# 忽略molecular_adsorption目录下的wheels目录
+molecular_adsorption/**/wheels/
+# 忽略molecular_adsorption目录下的*.egg-info目录
+molecular_adsorption/**/*.egg-info/
+# 忽略molecular_adsorption目录下的.installed.cfg文件
+molecular_adsorption/**/.installed.cfg
+# 忽略molecular_adsorption目录下的*.egg文件
+molecular_adsorption/**/*.egg
+# 忽略molecular_adsorption目录下的.env文件
+molecular_adsorption/**/.env
+# 忽略molecular_adsorption目录下的.venv目录
+molecular_adsorption/**/.venv/
+# 忽略molecular_adsorption目录下的venv目录
+molecular_adsorption/**/venv/
+# 忽略molecular_adsorption目录下的ENV目录
+molecular_adsorption/**/ENV/
+# 忽略molecular_adsorption目录下的.idea目录
+molecular_adsorption/**/.idea/
+# 忽略molecular_adsorption目录下的.vscode目录
+molecular_adsorption/**/.vscode/
+# 忽略molecular_adsorption目录下的*.swp文件
+molecular_adsorption/**/*.swp
+# 忽略molecular_adsorption目录下的*.swo文件
+molecular_adsorption/**/*.swo
+# 忽略molecular_adsorption目录下的.DS_Store文件
+molecular_adsorption/**/.DS_Store 
