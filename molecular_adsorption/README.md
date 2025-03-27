@@ -2,6 +2,29 @@
 
 这是一个用于构建分子吸附系统的图形界面工具，支持多种吸附位点选择、锚点选择和路径插值功能。
 
+## 快速开始
+
+### 安装依赖
+```bash
+# 创建虚拟环境（推荐）
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# 或
+venv\Scripts\activate  # Windows
+
+# 安装依赖包
+pip install -r requirements.txt
+```
+
+### 启动程序
+```bash
+# 进入程序目录
+cd molecular_adsorption
+
+# 启动图形界面
+python adsorption_gui.py
+```
+
 ## 功能特点
 
 - 支持多种吸附位点选择方式：
@@ -60,7 +83,7 @@
 ## 界面说明
 
 ### 主界面
-![main.png](file://C:\Users\xiety\Desktop\deepseek\molecular_adsorption\figs\main.png)
+![main.png](figs/main.png)
 
 主界面包含以下主要功能区域：
 1. 文件操作区：用于加载基底和分子结构
@@ -71,7 +94,7 @@
 6. 操作按钮区：包含各种功能按钮
 
 ### 单个位点选择界面
-![sub_site.png](file://C:\Users\xiety\Desktop\deepseek\molecular_adsorption\figs\sub_site.png)
+![sub_site.png](figs/sub_site.png)
 
 单个位点选择界面提供以下功能：
 1. 3D结构显示
@@ -80,17 +103,15 @@
 4. 单个位点选择
 
 ### 单个锚点选择界面
-![mol_anchor.png](file://C:\Users\xiety\Desktop\deepseek\molecular_adsorption\figs\mol_anchor.png)
+![mol_anchor.png](figs/mol_anchor.png)
 
 单个锚点选择界面提供以下功能：
 1. 分子3D显示
 2. 元素筛选
 3. 单个锚点选择
 
-
-
 ### 批量位点选择界面
-![batch_site.png](file://C:\Users\xiety\Desktop\deepseek\molecular_adsorption\figs\batch_site.png)
+![batch_site.png](figs/batch_site.png)
 
 批量位点选择界面提供以下功能：
 1. 3D结构显示
@@ -100,7 +121,7 @@
 5. 导出选项设置
 
 ### 批量锚点选择界面
-![batch_anchor.png](file://C:\Users\xiety\Desktop\deepseek\molecular_adsorption\figs\batch_anchor.png)
+![batch_anchor.png](figs/batch_anchor.png)
 
 批量锚点选择界面提供以下功能：
 1. 分子3D显示
@@ -109,7 +130,7 @@
 4. 导出选项设置
 
 ### 路径插值界面
-![batch_path_interpolate.png](file://C:\Users\xiety\Desktop\deepseek\molecular_adsorption\figs\batch_path_interpolate.png)
+![batch_path_interpolate.png](figs/batch_path_interpolate.png)
 
 路径插值界面提供以下功能：
 1. 路径点添加/删除
@@ -122,28 +143,31 @@
 
 1. 加载基底结构
    - 点击"加载基底"按钮
-   - 选择支持的格式文件
+   - 选择支持的格式文件（VASP、XYZ、CIF、XSF）
 
 2. 加载分子结构
    - 点击"加载分子"按钮
-   - 选择支持的格式文件
+   - 选择支持的格式文件（VASP、XYZ、CIF、XSF）
+   - 或使用"从PubChem下载"功能下载分子
 
 3. 选择吸附位点
    - 在基底上点击选择位点
    - 或使用批量选择功能
+   - 可以使用元素筛选功能快速定位特定元素
 
 4. 选择分子锚点
    - 在分子上点击选择锚点
    - 或使用批量选择功能
+   - 可以使用元素筛选功能快速定位特定元素
 
 5. 调整参数
-   - 使用滑块调整高度
-   - 使用滑块调整角度
-   - 使用输入框调整偏移
+   - 使用滑块调整高度（默认2.0Å）
+   - 使用滑块调整角度（X、Y、Z三个方向）
+   - 使用输入框调整偏移（X、Y方向）
 
 6. 导出结果
-   - 选择导出内容
-   - 选择导出格式
+   - 选择导出内容（吸附结构、基底结构、分子结构等）
+   - 选择导出格式（VASP、XYZ、CIF、XSF）
    - 点击导出按钮
 
 ### 批量处理功能
@@ -188,31 +212,55 @@
 1. 文件格式
    - 确保输入文件格式正确
    - 检查文件编码（推荐UTF-8）
+   - VASP文件需要包含原子坐标和晶格信息
 
 2. 结构要求
    - 基底结构需要是周期性结构
    - 分子结构需要是完整的分子
+   - 确保分子结构中的原子坐标合理
 
 3. 参数设置
-   - 吸附高度建议在合理范围内
+   - 吸附高度建议在合理范围内（1.5-3.0Å）
    - 角度调整时注意分子方向
+   - 真空层高度建议大于10Å
 
 4. 批量处理
    - 建议先测试单个结构
    - 批量处理时注意文件命名
+   - 确保有足够的磁盘空间
 
 ## 常见问题
 
 1. 结构显示问题
    - 检查文件格式是否正确
    - 检查结构是否完整
+   - 检查原子坐标是否合理
 
 2. 导出失败
    - 检查文件权限
    - 检查磁盘空间
-   - 检查文件命名
+   - 检查文件命名（避免特殊字符）
 
 3. 批量处理失败
    - 检查选择是否有效
    - 检查参数是否合理
    - 检查输出目录是否存在
+
+## 依赖包版本要求
+- Python >= 3.7
+- numpy >= 1.20.0
+- ase >= 3.22.0
+- pymatgen >= 2022.0.0
+- pubchempy >= 1.0.4
+- rdkit >= 2022.03.1
+- scipy >= 1.8.0
+- matplotlib >= 3.5.0
+- PyQt5 >= 5.15.0
+
+## 更新日志
+
+### v0.1.0 (2024-03-xx)
+- 初始版本发布
+- 支持基本的分子吸附系统构建功能
+- 支持多种吸附位点选择方式
+- 支持多种导出格式
