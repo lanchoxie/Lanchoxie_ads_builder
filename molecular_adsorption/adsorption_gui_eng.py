@@ -36,7 +36,20 @@ from mpl_toolkits.mplot3d import proj3d
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 
-from .languages import TRANSLATIONS, LanguageManager
+# 当直接运行文件时，使用绝对导入
+if __name__ == "__main__":
+    # 添加父目录到模块搜索路径
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+    from molecular_adsorption.languages import TRANSLATIONS, LanguageManager
+else:
+    # 当作为模块导入时，尝试相对导入
+    try:
+        from .languages import TRANSLATIONS, LanguageManager
+    except ImportError:
+        # 如果相对导入失败，尝试绝对导入
+        from molecular_adsorption.languages import TRANSLATIONS, LanguageManager
 
 from ase import Atoms
 from ase.io import read, write
