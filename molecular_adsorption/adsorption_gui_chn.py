@@ -3935,7 +3935,7 @@ class AdsorptionGUI(QMainWindow):
             self.update_projection_view()
             
             # 更新状态栏
-            self.status_label.setText(TRANSLATIONS[self.current_language]['status_adjusted_cell_height_msg'].format(vacuum_height))
+            self.status_label.setText(f"状态: 已调整晶胞高度以满足最小真空高度 {vacuum_height} Å")
         else:
             # 获取原子位置
             positions = self.adsorption_system.get_positions()

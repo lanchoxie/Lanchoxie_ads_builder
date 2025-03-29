@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                             QTabWidget, QMessageBox, QGroupBox, QRadioButton, QSlider, QComboBox,
                             QLineEdit, QCheckBox, QSplitter, QFrame, QDialog, QSpinBox,
                             QSizePolicy, QListWidget, QAbstractItemView, QButtonGroup,
-                            QDialogButtonBox, QInputDialog, QProgressDialog)
+                            QDialogButtonBox, QInputDialog, QProgressDialog, QAction)
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QIcon
@@ -32,9 +32,11 @@ import matplotlib.lines as mlines
 from matplotlib.path import Path
 from scipy.spatial import ConvexHull
 from scipy.spatial.transform import Rotation
-from mpl_toolkits.mplot3d import proj3d  # 正确的导入
+from mpl_toolkits.mplot3d import proj3d
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
+
+from .languages import TRANSLATIONS, LanguageManager
 
 from ase import Atoms
 from ase.io import read, write
@@ -348,6 +350,9 @@ class MplCanvas2D(FigureCanvas):
             self.axes.set_xlabel(x_label, fontsize=8)
             self.axes.set_ylabel(y_label, fontsize=8)
             
+            # 设置等比例显示
+            self.axes.set_aspect('equal')
+            
             # 绘制基底投影（考虑周期性）
             if substrate is not None:
                 cell = substrate.get_cell()
@@ -399,7 +404,7 @@ class MplCanvas2D(FigureCanvas):
                     hull_points = points[hull.vertices]
                     hull_points = np.vstack([hull_points, hull_points[0]])
                     self.axes.fill(hull_points[:, 0], hull_points[:, 1],
-                                 alpha=0.2, color='blue', label='基底')
+                                 alpha=0.2, color='blue', label=self.lang.get_text('substrate'))
                 except:
                     min_x, min_y = points.min(axis=0)
                     max_x, max_y = points.max(axis=0)
@@ -409,7 +414,7 @@ class MplCanvas2D(FigureCanvas):
                                   [min_x, max_y],
                                   [min_x, min_y]])
                     self.axes.fill(box[:, 0], box[:, 1],
-                                 alpha=0.2, color='blue', label='基底')
+                                 alpha=0.2, color='blue', label=self.lang.get_text('substrate'))
             
             # 绘制分子投影（考虑周期性）
             if molecule is not None:
@@ -450,7 +455,7 @@ class MplCanvas2D(FigureCanvas):
                     hull_points = points[hull.vertices]
                     hull_points = np.vstack([hull_points, hull_points[0]])
                     self.axes.fill(hull_points[:, 0], hull_points[:, 1],
-                                 alpha=0.5, color=color, label='分子')
+                                 alpha=0.5, color=color, label=self.lang.get_text('molecule'))
                 except:
                     min_x, min_y = points.min(axis=0)
                     max_x, max_y = points.max(axis=0)
@@ -460,7 +465,7 @@ class MplCanvas2D(FigureCanvas):
                                   [min_x, max_y],
                                   [min_x, min_y]])
                     self.axes.fill(box[:, 0], box[:, 1],
-                                 alpha=0.5, color=color, label='分子')
+                                 alpha=0.5, color=color, label=self.lang.get_text('molecule'))
                 
                 # 处理周期性边界条件
                 if substrate is not None:
@@ -512,7 +517,7 @@ class MplCanvas2D(FigureCanvas):
                             hull_points = np.vstack([hull_points, hull_points[0]])
                             self.axes.fill(hull_points[:, 0], hull_points[:, 1],
                                          alpha=mirror_alpha, color=color,
-                                         label=f'分子(镜像)')
+                                         label=f'{self.lang.get_text("molecule")}({self.lang.get_text("mirror")})')
                         except:
                             min_x, min_y = mirror_points.min(axis=0)
                             max_x, max_y = mirror_points.max(axis=0)
@@ -523,13 +528,13 @@ class MplCanvas2D(FigureCanvas):
                                           [min_x, min_y]])
                             self.axes.fill(box[:, 0], box[:, 1],
                                          alpha=mirror_alpha, color=color,
-                                         label=f'分子(镜像)')
+                                         label=f'{self.lang.get_text("molecule")}({self.lang.get_text("mirror")})')
             
             # 标记锚点
             if hasattr(self, 'anchor_atom_index') and self.anchor_atom_index is not None and molecule is not None:
                 anchor_pos = molecule.positions[self.anchor_atom_index]
                 self.axes.scatter(anchor_pos[x_idx], anchor_pos[y_idx], 
-                                color='yellow', marker='o', s=100, label='锚点')
+                                color='yellow', marker='o', s=100, label=self.lang.get_text('anchor_point'))
                 self.axes.annotate(f'({anchor_pos[x_idx]:.1f}, {anchor_pos[y_idx]:.1f})',
                                 xy=(anchor_pos[x_idx], anchor_pos[y_idx]),
                                 xytext=(5, 5), textcoords='offset points', fontsize=8)
@@ -537,7 +542,7 @@ class MplCanvas2D(FigureCanvas):
             # 标记吸附位点
             if hasattr(self, 'site_position') and self.site_position is not None:
                 self.axes.scatter(self.site_position[x_idx], self.site_position[y_idx],
-                                color='red', marker='*', s=100, label='吸附位点')
+                                color='red', marker='*', s=100, label=self.lang.get_text('adsorption_site'))
                 self.axes.annotate(f'({self.site_position[x_idx]:.1f}, {self.site_position[y_idx]:.1f})',
                                 xy=(self.site_position[x_idx], self.site_position[y_idx]),
                                 xytext=(5, 5), textcoords='offset points', fontsize=8)
@@ -548,13 +553,13 @@ class MplCanvas2D(FigureCanvas):
                 height_text = ""
                 if substrate is not None:
                     substrate_height = substrate.get_cell()[2, 2]
-                    height_text = f"晶格高度: {substrate_height:.1f} Å"
+                    height_text = f"{self.lang.get_text('lattice_height')}: {substrate_height:.1f} Å"
                 if molecule is not None:
                     molecule_height = np.max(molecule.positions[:, 2])
                     if height_text:
-                        height_text += f"\n分子最高点: {molecule_height:.1f} Å"
+                        height_text += f"\n{self.lang.get_text('molecule_highest_point')}: {molecule_height:.1f} Å"
                     else:
-                        height_text = f"分子最高点: {molecule_height:.1f} Å"
+                        height_text = f"{self.lang.get_text('molecule_highest_point')}: {molecule_height:.1f} Å"
                 
                 # 添加高度信息到图例
                 if height_text:
@@ -593,6 +598,8 @@ class ProjectionCanvas(MplCanvas2D):
         self.with_legend = with_legend
         self.anchor_atom_index = None
         self.site_position = None
+        # 获取语言管理器实例
+        self.lang = LanguageManager()
     
     def plot_projection(self, substrate, molecule, check_position=True):
         """Plot 2D projection of substrate and molecule"""
@@ -620,6 +627,9 @@ class ProjectionCanvas(MplCanvas2D):
             self.axes.spines['right'].set_visible(False)
             self.axes.set_xlabel(x_label, fontsize=8)
             self.axes.set_ylabel(y_label, fontsize=8)
+            
+            # 设置等比例显示
+            self.axes.set_aspect('equal')
             
             # 绘制基底投影（考虑周期性）
             if substrate is not None:
@@ -672,7 +682,7 @@ class ProjectionCanvas(MplCanvas2D):
                     hull_points = points[hull.vertices]
                     hull_points = np.vstack([hull_points, hull_points[0]])
                     self.axes.fill(hull_points[:, 0], hull_points[:, 1],
-                                 alpha=0.2, color='blue', label='基底')
+                                 alpha=0.2, color='blue', label=self.lang.get_text('substrate'))
                 except:
                     min_x, min_y = points.min(axis=0)
                     max_x, max_y = points.max(axis=0)
@@ -682,7 +692,7 @@ class ProjectionCanvas(MplCanvas2D):
                                   [min_x, max_y],
                                   [min_x, min_y]])
                     self.axes.fill(box[:, 0], box[:, 1],
-                                 alpha=0.2, color='blue', label='基底')
+                                 alpha=0.2, color='blue', label=self.lang.get_text('substrate'))
             
             # 绘制分子投影（考虑周期性）
             if molecule is not None:
@@ -730,7 +740,7 @@ class ProjectionCanvas(MplCanvas2D):
                     hull_points = points[hull.vertices]
                     hull_points = np.vstack([hull_points, hull_points[0]])
                     self.axes.fill(hull_points[:, 0], hull_points[:, 1],
-                                 alpha=0.5, color=color, label='分子')
+                                 alpha=0.5, color=color, label=self.lang.get_text('molecule'))
                 except:
                     min_x, min_y = points.min(axis=0)
                     max_x, max_y = points.max(axis=0)
@@ -740,7 +750,7 @@ class ProjectionCanvas(MplCanvas2D):
                                   [min_x, max_y],
                                   [min_x, min_y]])
                     self.axes.fill(box[:, 0], box[:, 1],
-                                 alpha=0.5, color=color, label='分子')
+                                 alpha=0.5, color=color, label=self.lang.get_text('molecule'))
                 
                 # 处理周期性边界条件
                 if substrate is not None:
@@ -792,7 +802,7 @@ class ProjectionCanvas(MplCanvas2D):
                             hull_points = np.vstack([hull_points, hull_points[0]])
                             self.axes.fill(hull_points[:, 0], hull_points[:, 1],
                                          alpha=mirror_alpha, color=color,
-                                         label=f'分子(镜像)')
+                                         label=f'{self.lang.get_text("molecule")}({self.lang.get_text("mirror")})')
                         except:
                             min_x, min_y = mirror_points.min(axis=0)
                             max_x, max_y = mirror_points.max(axis=0)
@@ -803,13 +813,13 @@ class ProjectionCanvas(MplCanvas2D):
                                           [min_x, min_y]])
                             self.axes.fill(box[:, 0], box[:, 1],
                                          alpha=mirror_alpha, color=color,
-                                         label=f'分子(镜像)')
+                                         label=f'{self.lang.get_text("molecule")}({self.lang.get_text("mirror")})')
             
             # 标记锚点
             if hasattr(self, 'anchor_atom_index') and self.anchor_atom_index is not None and molecule is not None:
                 anchor_pos = molecule.positions[self.anchor_atom_index]
                 self.axes.scatter(anchor_pos[x_idx], anchor_pos[y_idx], 
-                                color='yellow', marker='o', s=100, label='锚点')
+                                color='yellow', marker='o', s=100, label=self.lang.get_text('anchor_point'))
                 self.axes.annotate(f'({anchor_pos[x_idx]:.1f}, {anchor_pos[y_idx]:.1f})',
                                 xy=(anchor_pos[x_idx], anchor_pos[y_idx]),
                                 xytext=(5, 5), textcoords='offset points', fontsize=8)
@@ -817,7 +827,7 @@ class ProjectionCanvas(MplCanvas2D):
             # 标记吸附位点
             if hasattr(self, 'site_position') and self.site_position is not None:
                 self.axes.scatter(self.site_position[x_idx], self.site_position[y_idx],
-                                color='red', marker='*', s=100, label='吸附位点')
+                                color='red', marker='*', s=100, label=self.lang.get_text('adsorption_site'))
                 self.axes.annotate(f'({self.site_position[x_idx]:.1f}, {self.site_position[y_idx]:.1f})',
                                 xy=(self.site_position[x_idx], self.site_position[y_idx]),
                                 xytext=(5, 5), textcoords='offset points', fontsize=8)
@@ -828,13 +838,13 @@ class ProjectionCanvas(MplCanvas2D):
                 height_text = ""
                 if substrate is not None:
                     substrate_height = substrate.get_cell()[2, 2]
-                    height_text = f"晶格高度: {substrate_height:.1f} Å"
+                    height_text = f"{self.lang.get_text('lattice_height')}: {substrate_height:.1f} Å"
                 if molecule is not None:
                     molecule_height = np.max(molecule.positions[:, 2])
                     if height_text:
-                        height_text += f"\n分子最高点: {molecule_height:.1f} Å"
+                        height_text += f"\n{self.lang.get_text('molecule_highest_point')}: {molecule_height:.1f} Å"
                     else:
-                        height_text = f"分子最高点: {molecule_height:.1f} Å"
+                        height_text = f"{self.lang.get_text('molecule_highest_point')}: {molecule_height:.1f} Å"
                 
                 # 添加高度信息到图例
                 if height_text:
@@ -846,20 +856,13 @@ class ProjectionCanvas(MplCanvas2D):
                                 bbox_to_anchor=(0.5, 1.2), ncol=2,
                                 fontsize='small', framealpha=0.8)
             
-            # 设置相等的纵横比
-            self.axes.set_aspect('equal')
-            
-            # 调整布局
-            self.figure.tight_layout()
-            if self.with_legend:
-                self.figure.subplots_adjust(top=0.8)  # 为图例留出空间
-            
             self.draw()
-            
         except Exception as e:
-            print(f"Error plotting {self.projection_type} projection: {str(e)}")
+            print(f"绘制投影时出错: {e}")
             import traceback
             traceback.print_exc()
+            self.axes.clear()
+            self.draw()
     
     def clear_plot(self):
         """Clear the projection plot"""
@@ -869,7 +872,9 @@ class ProjectionCanvas(MplCanvas2D):
 class ExportOptionsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("导出选项")
+        # 获取语言管理器实例
+        self.lang = LanguageManager()
+        self.setWindowTitle(self.lang.get_text('export_options'))
         self.initUI()
         
     def initUI(self):
@@ -877,29 +882,29 @@ class ExportOptionsDialog(QDialog):
         
         # 基础名称输入
         name_layout = QHBoxLayout()
-        name_label = QLabel("基础名称:")
+        name_label = QLabel(self.lang.get_text('base_name'))
         self.name_input = QLineEdit()
         name_layout.addWidget(name_label)
         name_layout.addWidget(self.name_input)
         layout.addLayout(name_layout)
         
         # 导出内容选择
-        content_group = QGroupBox("导出内容")
+        content_group = QGroupBox(self.lang.get_text('export_content'))
         content_layout = QVBoxLayout()
         
-        self.export_adsorption = QCheckBox("导出吸附系统")
+        self.export_adsorption = QCheckBox(self.lang.get_text('export_adsorption_system'))
         self.export_adsorption.setChecked(True)
         content_layout.addWidget(self.export_adsorption)
         
-        self.export_structures = QCheckBox("导出基底和分子结构")
+        self.export_structures = QCheckBox(self.lang.get_text('export_substrate_and_molecule_structures'))
         self.export_structures.setChecked(True)
         content_layout.addWidget(self.export_structures)
         
-        self.export_figure = QCheckBox("导出图片")
+        self.export_figure = QCheckBox(self.lang.get_text('export_picture'))
         self.export_figure.setChecked(True)
         content_layout.addWidget(self.export_figure)
         
-        self.export_json = QCheckBox("导出当前状态(JSON)")
+        self.export_json = QCheckBox(self.lang.get_text('export_current_state'))
         self.export_json.setChecked(True)
         content_layout.addWidget(self.export_json)
         
@@ -907,7 +912,7 @@ class ExportOptionsDialog(QDialog):
         layout.addWidget(content_group)
         
         # 文件格式选择
-        format_group = QGroupBox("文件格式")
+        format_group = QGroupBox(self.lang.get_text('file_format'))
         format_layout = QVBoxLayout()
         
         self.format_combo = QComboBox()
@@ -960,6 +965,9 @@ class SiteSelectionDialog(QDialog):
         self.element_filter = element
         self.parent_window = parent  # 保存父窗口引用，用于获取anchor信息
         
+        # 获取语言管理器实例
+        self.lang = LanguageManager()
+        
         # 初始化变量
         self.sites = []
         self.site_elements = []  # 每个位点对应的元素列表
@@ -973,7 +981,16 @@ class SiteSelectionDialog(QDialog):
         
     def initUI(self):
         """Initialize the UI components"""
-        self.setWindowTitle(f"选择{self.site_type}吸附位点")
+        # 使用site_type设置标题
+        site_type_text = ""
+        if self.site_type == "top":
+            site_type_text = self.lang.get_text('site_types')[0]  # 顶位
+        elif self.site_type == "bridge":
+            site_type_text = self.lang.get_text('site_types')[1]  # 桥位
+        elif self.site_type == "hollow":
+            site_type_text = self.lang.get_text('site_types')[2]  # 空位
+            
+        self.setWindowTitle(f"{self.lang.get_text('select')}{site_type_text}{self.lang.get_text('adsorption_site')}")
         self.setMinimumSize(800, 600)
         
         # 创建主布局
@@ -984,17 +1001,17 @@ class SiteSelectionDialog(QDialog):
         control_layout = QVBoxLayout(control_panel)
         
         # 创建筛选控件部分
-        filter_group = QGroupBox("位点筛选")
+        filter_group = QGroupBox(self.lang.get_text('site_filter'))
         filter_layout = QVBoxLayout()
         
         # 添加"是否筛选"复选框
-        self.filter_checkbox = QCheckBox("启用元素筛选")
+        self.filter_checkbox = QCheckBox(self.lang.get_text('enable_element_filter'))
         self.filter_checkbox.stateChanged.connect(self.toggle_filter_controls)
         filter_layout.addWidget(self.filter_checkbox)
         
         # 添加表面层数选择
         surface_layer_layout = QHBoxLayout()
-        surface_layer_layout.addWidget(QLabel("表面层数:"))
+        surface_layer_layout.addWidget(QLabel(self.lang.get_text('surface_layer')))
         self.surface_layer_spin = QSpinBox()
         self.surface_layer_spin.setMinimum(1)
         self.surface_layer_spin.setMaximum(10)  # 最多允许10层
@@ -1004,10 +1021,10 @@ class SiteSelectionDialog(QDialog):
         
         # 添加3D模式选择
         surface_layer_layout.addSpacing(20)  # 添加间距
-        surface_layer_layout.addWidget(QLabel("显示模式:"))
+        surface_layer_layout.addWidget(QLabel(self.lang.get_text('display_mode')))
         self.view_mode_combo = QComboBox()
-        self.view_mode_combo.addItem("仅顶层 (传统模式)")
-        self.view_mode_combo.addItem("多层 (3D模式)")
+        self.view_mode_combo.addItem(self.lang.get_text('top_layer'))
+        self.view_mode_combo.addItem(self.lang.get_text('multi_layer'))
         self.view_mode_combo.currentIndexChanged.connect(self.view_mode_changed)
         surface_layer_layout.addWidget(self.view_mode_combo)
         
@@ -1019,7 +1036,7 @@ class SiteSelectionDialog(QDialog):
         
         # 左侧：表面元素列表
         left_layout = QVBoxLayout()
-        left_layout.addWidget(QLabel("可用元素:"))
+        left_layout.addWidget(QLabel(self.lang.get_text('available_elements')))
         self.available_elements_list = QListWidget()
         self.available_elements_list.itemDoubleClicked.connect(self.add_filter_element)
         left_layout.addWidget(self.available_elements_list)
@@ -1028,13 +1045,13 @@ class SiteSelectionDialog(QDialog):
         # 中间：添加/移除按钮
         mid_layout = QVBoxLayout()
         mid_layout.addStretch()
-        add_button = QPushButton("添加 →")
+        add_button = QPushButton(self.lang.get_text('add'))
         add_button.clicked.connect(self.add_filter_element)
         mid_layout.addWidget(add_button)
-        remove_button = QPushButton("← 移除")
+        remove_button = QPushButton(self.lang.get_text('remove'))
         remove_button.clicked.connect(self.remove_filter_element)
         mid_layout.addWidget(remove_button)
-        clear_button = QPushButton("清空")
+        clear_button = QPushButton(self.lang.get_text('clear'))
         clear_button.clicked.connect(self.clear_filter_elements)
         mid_layout.addWidget(clear_button)
         mid_layout.addStretch()
@@ -1042,7 +1059,7 @@ class SiteSelectionDialog(QDialog):
         
         # 右侧：筛选元素列表
         right_layout = QVBoxLayout()
-        right_layout.addWidget(QLabel("筛选元素:"))
+        right_layout.addWidget(QLabel(self.lang.get_text('filter_elements')))
         self.filter_elements_list = QListWidget()
         self.filter_elements_list.itemDoubleClicked.connect(self.remove_filter_element)
         right_layout.addWidget(self.filter_elements_list)
@@ -1068,16 +1085,16 @@ class SiteSelectionDialog(QDialog):
         
         # 创建状态栏
         status_layout = QHBoxLayout()
-        self.status_label = QLabel("准备就绪")
+        self.status_label = QLabel(self.lang.get_text('ready'))
         status_layout.addWidget(self.status_label)
         
         # 创建确定/取消按钮
-        self.select_button = QPushButton("选择")
+        self.select_button = QPushButton(self.lang.get_text('select'))
         self.select_button.setEnabled(False)  # 初始时禁用
         self.select_button.clicked.connect(self.accept)
         status_layout.addWidget(self.select_button)
         
-        cancel_button = QPushButton("取消")
+        cancel_button = QPushButton(self.lang.get_text('cancel'))
         cancel_button.clicked.connect(self.reject)
         status_layout.addWidget(cancel_button)
         
@@ -1433,11 +1450,19 @@ class SiteSelectionDialog(QDialog):
                             site_pos[0], site_pos[1], site_pos[2], 
                             color=ANCHOR_COLOR, marker='o', s=100, alpha=0.7,
                             edgecolors='black', linewidths=1.0,
-                            label="当前锚点位置"
+                            label=self.lang.get_text("current_anchor_position")
                         )
             
             # 设置图形标题
-            self.canvas.axes.set_title(f"{self.site_type.capitalize()} 吸附位点")
+            site_type_text = ""
+            if self.site_type == "top":
+                site_type_text = self.lang.get_text('site_types')[0]  # 顶位
+            elif self.site_type == "bridge":
+                site_type_text = self.lang.get_text('site_types')[1]  # 桥位
+            elif self.site_type == "hollow":
+                site_type_text = self.lang.get_text('site_types')[2]  # 空位
+            
+            self.canvas.axes.set_title(f"{self.site_type.capitalize()} {site_type_text}")
             
             # 设置适合的显示范围
             positions_array = np.array(positions)
@@ -1502,9 +1527,9 @@ class SiteSelectionDialog(QDialog):
         click_x, click_y = event.xdata, event.ydata
         
         # 添加调试输出
-        print(f"点击位置: x={click_x:.2f}, y={click_y:.2f}")
-        print(f"可选位点数量: {len(self.filtered_sites)}")
-        print(f"当前视角: elev={current_elev}, azim={current_azim}")
+        print(f"{self.lang.get_text('click_position')}: x={click_x:.2f}, y={click_y:.2f}")
+        print(f"{self.lang.get_text('available_sites_number')}: {len(self.filtered_sites)}")
+        print(f"{self.lang.get_text('current_view')}: elev={current_elev}, azim={current_azim}")
         
         # 如果没有可选位点，直接返回
         if len(self.filtered_sites) == 0:
@@ -1536,7 +1561,7 @@ class SiteSelectionDialog(QDialog):
                           (xy_pixel[1] - click_pixel[1])**2)
             
             # 调试输出
-            print(f"位点 {i}: 位置={site}, 距离={dist:.2f}像素")
+            print(f"{self.lang.get_text('site')} {i}: {self.lang.get_text('position')}={site}, {self.lang.get_text('distance')}={dist:.2f}像素")
             
             # 更新最近点
             if dist < min_dist:
@@ -1546,7 +1571,7 @@ class SiteSelectionDialog(QDialog):
         if nearest_idx is not None:
             nearest_site = self.filtered_sites[nearest_idx]
             
-            print(f"选中位点索引: {nearest_idx}, 位置: {nearest_site}, 距离: {min_dist:.2f}像素")
+            print(f"{self.lang.get_text('selected_site_index')}: {nearest_idx}, {self.lang.get_text('position')}: {nearest_site}, {self.lang.get_text('distance')}: {min_dist:.2f}像素")
             
             # 保存选中位点的信息（在绘制之前）
             self.selected_site = nearest_site
@@ -1565,7 +1590,7 @@ class SiteSelectionDialog(QDialog):
             
             # 在位点上方添加清晰的标记
             self.canvas.axes.text(nearest_site[0], nearest_site[1], nearest_site[2] + 0.5, 
-                                 f"选中位点 {nearest_idx+1}", 
+                                 f"{self.lang.get_text('selected_site')} {nearest_idx+1}", 
                                  color='red', fontweight='bold', ha='center', va='bottom',
                                  zorder=11)
             
@@ -1575,8 +1600,8 @@ class SiteSelectionDialog(QDialog):
             # 更新状态标签显示选定位点的元素组成
             site_elements = self.filtered_site_elements[nearest_idx]
             element_str = ", ".join(site_elements)
-            self.status_label.setText(f"已选择位点 {nearest_idx+1}/{len(self.filtered_sites)}: "
-                                     f"{nearest_site} (元素: {element_str}, 距离: {min_dist:.2f}像素)")
+            self.status_label.setText(f"{self.lang.get_text('selected_site')} {nearest_idx+1}/{len(self.filtered_sites)}: "
+                                     f"{nearest_site} ({self.lang.get_text('element')}: {element_str}, {self.lang.get_text('distance')}: {min_dist:.2f}像素)")
     
     def accept(self):
         """Accept currently selected site"""
@@ -1620,11 +1645,13 @@ class AtomSelectionDialog(QDialog):
         self.c_perpendicular = None
         self.no_perpendicular = None
         self.adjustment_group = None
+        # 获取语言管理器实例
+        self.lang = LanguageManager()
         self.initUI()
     
     def initUI(self):
         """Initialize the dialog UI"""
-        self.setWindowTitle("选择锚点原子")
+        self.setWindowTitle(self.lang.get_text('select_anchor_atom'))
         self.resize(900, 600)
         
         # Main layout
@@ -1635,7 +1662,7 @@ class AtomSelectionDialog(QDialog):
         top_layout = QHBoxLayout(top_panel)
         
         # Element selection
-        element_label = QLabel("元素:")
+        element_label = QLabel(self.lang.get_text('element') + ":")
         self.element_combo = QComboBox()
         
         # Get unique elements
@@ -1646,7 +1673,7 @@ class AtomSelectionDialog(QDialog):
         self.element_combo.currentTextChanged.connect(self._update_atom_combo)
         
         # Atom selection
-        atom_label = QLabel("原子索引:")
+        atom_label = QLabel(self.lang.get_text('atom_index'))
         self.atom_combo = QComboBox()
         
         # Connect signal to update selection when atom changes
@@ -1659,7 +1686,7 @@ class AtomSelectionDialog(QDialog):
         top_layout.addWidget(self.atom_combo)
         
         # Create info display area
-        self.atom_info = QLabel("选择一个原子查看信息")
+        self.atom_info = QLabel(self.lang.get_text('select_an_atom_to_view_information'))
         self.atom_info.setMinimumHeight(50)
         self.atom_info.setFrameStyle(QFrame.Panel | QFrame.Sunken)
         self.atom_info.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -1672,31 +1699,30 @@ class AtomSelectionDialog(QDialog):
         canvas_layout.addWidget(self.canvas)
         
         # Create checkbox for adjustment options
-        adjustment_groupbox = QGroupBox("方向调整选项")
+        adjustment_groupbox = QGroupBox(self.lang.get_text('direction_adjustment_options'))
         adjustment_layout = QVBoxLayout()
         
         # 创建选项按钮组，确保选项互斥
         self.adjustment_group = QButtonGroup()
         
         # 第一个选项：与分子质心连线垂直于表面
-        self.center_perpendicular = QRadioButton("锚点与分子质心连线垂直于表面")
+        self.center_perpendicular = QRadioButton(self.lang.get_text('anchor_perpendicular_to_molecule_center'))
         self.center_perpendicular.setChecked(True)  # 默认选中
         self.adjustment_group.addButton(self.center_perpendicular)
         adjustment_layout.addWidget(self.center_perpendicular)
         
         # 第二个选项：与C原子连线垂直于表面
-        self.c_perpendicular = QRadioButton("锚点与相连C原子连线垂直于表面")
+        self.c_perpendicular = QRadioButton(self.lang.get_text('anchor_perpendicular_to_C_atom'))
         self.adjustment_group.addButton(self.c_perpendicular)
         adjustment_layout.addWidget(self.c_perpendicular)
 
         # 第三个选项：不做改变
-        self.no_perpendicular = QRadioButton("保持当前分子状态")
+        self.no_perpendicular = QRadioButton(self.lang.get_text('keep_current_molecule_state'))
         self.adjustment_group.addButton(self.no_perpendicular)
         adjustment_layout.addWidget(self.no_perpendicular)
         
-
         # 添加是否需要调整分子位置的选项
-        self.adjust_checkbox = QCheckBox("调整分子位置以防止碰撞")
+        self.adjust_checkbox = QCheckBox(self.lang.get_text('adjust_molecule_position'))
         self.adjust_checkbox.setChecked(True)  # 默认选中
         adjustment_layout.addWidget(self.adjust_checkbox)
         
@@ -1704,8 +1730,8 @@ class AtomSelectionDialog(QDialog):
         
         # Create button layout
         button_layout = QHBoxLayout()
-        self.ok_button = QPushButton("确定")
-        self.cancel_button = QPushButton("取消")
+        self.ok_button = QPushButton(self.lang.get_text('ok'))
+        self.cancel_button = QPushButton(self.lang.get_text('cancel'))
         
         # Connect buttons
         self.ok_button.clicked.connect(self.accept)
@@ -1761,13 +1787,13 @@ class AtomSelectionDialog(QDialog):
             symbol = self.atoms.get_chemical_symbols()[atom_idx]
             
             # 更新UI
-            self.atom_info.setText(f"选中原子: {atom_idx} ({symbol})")
+            self.atom_info.setText(f"{self.lang.get_text('selected_atom')}: {atom_idx} ({symbol})")
             self.selected_atom = atom_idx
             
             # 高亮显示选中的原子
             self.highlight_selected_atom(atom_idx)
         except (ValueError, IndexError):
-            self.atom_info.setText("无效的原子选择")
+            self.atom_info.setText(self.lang.get_text('error'))
             self.selected_atom = None
     
     def plot_molecule(self):
@@ -1882,7 +1908,7 @@ class AtomSelectionDialog(QDialog):
         
         # 添加选中原子的图例
         legend_elements.append(plt.Line2D([0], [0], marker='o', color='w',
-                                label='选中原子', markerfacecolor=HIGHLIGHT_COLOR, markersize=10))
+                                label=self.lang.get_text('selected_atom'), markerfacecolor=HIGHLIGHT_COLOR, markersize=10))
         
         # 优化图例位置，避免遮挡
         if legend_elements:
@@ -1987,8 +2013,16 @@ class AdsorptionGUI(QMainWindow):
         """Initialize the AdsorptionGUI application"""
         super().__init__()
         
+        # 初始化语言设置
+        self.current_language = 'en'  # 默认使用英语
+        # 获取语言管理器实例
+        self.lang = LanguageManager()
+        
         # Set up the UI
         self.initUI()
+        
+        # 创建菜单栏
+        self.create_menu_bar()
         
         # Initialize variables
         self.molecule = None
@@ -2023,7 +2057,7 @@ class AdsorptionGUI(QMainWindow):
     
     def initUI(self):
         """Initialize the UI components"""
-        self.setWindowTitle("Molecular Adsorption Simulation Tool")
+        self.setWindowTitle(self.lang.get_text('window_title'))
         self.setMinimumSize(1200, 800)
         
         # Create central widget
@@ -2039,14 +2073,15 @@ class AdsorptionGUI(QMainWindow):
         control_panel.setMaximumWidth(500)
         
         # File operations section
-        file_group = QGroupBox("File Operations")
+        file_group = QGroupBox(self.lang.get_text('file_operations'))
+        self.file_group = file_group  # 保存组件引用以供update_language使用
         file_layout = QVBoxLayout()
         
         # Molecule file selection
         mol_layout = QHBoxLayout()
-        self.mol_label = QLabel("Molecule File:")
+        self.mol_label = QLabel(self.lang.get_text('molecule_file'))
         self.mol_path = QLineEdit()
-        self.mol_browse = QPushButton("Browse...")
+        self.mol_browse = QPushButton(self.lang.get_text('browse'))
         self.mol_browse.clicked.connect(self.browse_molecule)
         mol_layout.addWidget(self.mol_label)
         mol_layout.addWidget(self.mol_path)
@@ -2055,9 +2090,9 @@ class AdsorptionGUI(QMainWindow):
         
         # Substrate file selection
         sub_layout = QHBoxLayout()
-        self.sub_label = QLabel("Substrate File:")
+        self.sub_label = QLabel(self.lang.get_text('substrate_file'))
         self.sub_path = QLineEdit()
-        self.sub_browse = QPushButton("Browse...")
+        self.sub_browse = QPushButton(self.lang.get_text('browse'))
         self.sub_browse.clicked.connect(self.browse_substrate)
         sub_layout.addWidget(self.sub_label)
         sub_layout.addWidget(self.sub_path)
@@ -2066,9 +2101,9 @@ class AdsorptionGUI(QMainWindow):
         
         # 添加导入/导出状态按钮
         state_layout = QHBoxLayout()
-        self.import_state_btn = QPushButton("导入状态")
+        self.import_state_btn = QPushButton(self.lang.get_text('import_state'))
         self.import_state_btn.clicked.connect(self.import_state)
-        self.export_state_btn = QPushButton("导出状态")
+        self.export_state_btn = QPushButton(self.lang.get_text('export_state'))
         self.export_state_btn.clicked.connect(self.export_state)
         state_layout.addWidget(self.import_state_btn)
         state_layout.addWidget(self.export_state_btn)
@@ -2076,9 +2111,9 @@ class AdsorptionGUI(QMainWindow):
         
         # Display style combo box
         style_layout = QHBoxLayout()
-        style_layout.addWidget(QLabel("Display Style:"))
+        style_layout.addWidget(QLabel(self.lang.get_text('display_style')))
         self.style_combo = QComboBox()
-        self.style_combo.addItems(["Ball and Stick", "Space Filling", "Wireframe"])
+        self.style_combo.addItems(self.lang.get_text('display_styles'))
         self.style_combo.currentIndexChanged.connect(self.update_display)
         style_layout.addWidget(self.style_combo)
         file_layout.addLayout(style_layout)
@@ -2087,23 +2122,25 @@ class AdsorptionGUI(QMainWindow):
         control_layout.addWidget(file_group)
         
         # Adsorption parameters section
-        adsorption_group = QGroupBox("Adsorption Parameters")
+        adsorption_group = QGroupBox(self.lang.get_text('adsorption_parameters'))
+        self.adsorption_group = adsorption_group  # 保存组件引用
         adsorption_layout = QVBoxLayout()
         
         # Adsorption site selection
         site_layout = QHBoxLayout()
-        site_layout.addWidget(QLabel("Adsorption Site:"))
+        self.site_label = QLabel(self.lang.get_text('adsorption_site'))
+        site_layout.addWidget(self.site_label)
         self.site_combo = QComboBox()
-        self.site_combo.addItems(["Top", "Bridge", "Hollow"])
+        self.site_combo.addItems(self.lang.get_text('site_types'))
         site_layout.addWidget(self.site_combo)
-        self.site_select = QPushButton("Select Site")
+        self.site_select = QPushButton(self.lang.get_text('select_site'))
         self.site_select.clicked.connect(self.open_site_selection)
         site_layout.addWidget(self.site_select)
         adsorption_layout.addLayout(site_layout)
         
         # Target element entry
         element_layout = QHBoxLayout()
-        element_label = QLabel("Target Element:")
+        element_label = QLabel(self.lang.get_text('target_element'))
         self.element_entry = QLineEdit()
         
         # 创建一个空的widget来存放这些控件但不显示它们
@@ -2114,14 +2151,10 @@ class AdsorptionGUI(QMainWindow):
         hidden_element_widget.setVisible(False)  # 隐藏整个widget
         adsorption_layout.addWidget(hidden_element_widget)
         
-        # 不再直接添加到布局
-        # element_layout.addWidget(QLabel("Target Element:"))
-        # element_layout.addWidget(self.element_entry)
-        # adsorption_layout.addLayout(element_layout)
-        
         # Height setting
         height_layout = QHBoxLayout()
-        height_layout.addWidget(QLabel("Distance from Surface (Å):"))
+        self.height_label = QLabel(self.lang.get_text('distance_from_surface'))
+        height_layout.addWidget(self.height_label)
         self.height = QDoubleSpinBox()
         self.height.setRange(0.1, 10.0)
         self.height.setValue(2.0)
@@ -2131,7 +2164,8 @@ class AdsorptionGUI(QMainWindow):
         
         # Vacuum layer height
         vacuum_layout = QHBoxLayout()
-        vacuum_layout.addWidget(QLabel("Minimum Vacuum Height (Å):"))
+        self.vacuum_label = QLabel(self.lang.get_text('minimum_vacuum'))
+        vacuum_layout.addWidget(self.vacuum_label)
         self.vacuum = QDoubleSpinBox()
         self.vacuum.setRange(0.0, 30.0)
         self.vacuum.setValue(10.0)
@@ -2140,12 +2174,12 @@ class AdsorptionGUI(QMainWindow):
         adsorption_layout.addLayout(vacuum_layout)
         
         # Anchor Atom
-        self.anchor_label = QLabel("Anchor Atom:")
+        self.anchor_label = QLabel(self.lang.get_text('anchor_atom'))
         self.anchor = QSpinBox()
         self.anchor.setMinimum(0)
         self.anchor.setMaximum(999)
         self.anchor_element_label = QLabel("")
-        self.select_anchor_btn = QPushButton("Select by Structure")
+        self.select_anchor_btn = QPushButton(self.lang.get_text('select_by_structure'))
         self.select_anchor_btn.clicked.connect(self.open_anchor_selection)
         
         anchor_layout = QHBoxLayout()
@@ -2159,16 +2193,19 @@ class AdsorptionGUI(QMainWindow):
         control_layout.addWidget(adsorption_group)
         
         # Add molecule adjustment section
-        adjust_group = QGroupBox("Molecule Adjustment")
+        adjust_group = QGroupBox(self.lang.get_text('molecule_adjustment'))
+        self.adjust_group = adjust_group  # 保存组件引用
         adjust_layout = QVBoxLayout()
         
         # Rotation adjustment
-        rotate_group = QGroupBox("Rotation Angles (degrees)")
+        rotate_group = QGroupBox(self.lang.get_text('rotation_controls'))
+        self.rotate_group = rotate_group  # 保存组件引用
         rotate_layout = QVBoxLayout()
         
         # X-axis rotation
         x_rotate_layout = QHBoxLayout()
-        x_rotate_layout.addWidget(QLabel("X-axis:"))
+        self.x_axis_label = QLabel(self.lang.get_text('x_axis'))
+        x_rotate_layout.addWidget(self.x_axis_label)
         self.x_slider = QSlider(Qt.Horizontal)
         self.x_slider.setRange(0, 360)
         self.x_slider.setValue(0)
@@ -2179,7 +2216,8 @@ class AdsorptionGUI(QMainWindow):
         
         # Y-axis rotation
         y_rotate_layout = QHBoxLayout()
-        y_rotate_layout.addWidget(QLabel("Y-axis:"))
+        self.y_axis_label = QLabel(self.lang.get_text('y_axis'))
+        y_rotate_layout.addWidget(self.y_axis_label)
         self.y_slider = QSlider(Qt.Horizontal)
         self.y_slider.setRange(0, 360)
         self.y_slider.setValue(0)
@@ -2190,7 +2228,8 @@ class AdsorptionGUI(QMainWindow):
         
         # Z-axis rotation
         z_rotate_layout = QHBoxLayout()
-        z_rotate_layout.addWidget(QLabel("Z-axis:"))
+        self.z_axis_label = QLabel(self.lang.get_text('z_axis'))
+        z_rotate_layout.addWidget(self.z_axis_label)
         self.z_slider = QSlider(Qt.Horizontal)
         self.z_slider.setRange(0, 360)
         self.z_slider.setValue(0)
@@ -2203,21 +2242,22 @@ class AdsorptionGUI(QMainWindow):
         adjust_layout.addWidget(rotate_group)
         
         # Translation adjustment
-        translate_group = QGroupBox("Translation Adjustment")
+        translate_group = QGroupBox(self.lang.get_text('translation_adjustment'))
+        self.translate_group = translate_group  # 保存组件引用
         translate_layout = QVBoxLayout()
         
         # 添加保持垂直调整的选项
-        self.keep_vertical = QCheckBox("保持锚点到质心垂直于表面")
+        self.keep_vertical = QCheckBox(self.lang.get_text('keep_vertical'))
         self.keep_vertical.setChecked(False)
         translate_layout.addWidget(self.keep_vertical)
         
         # XY plane check and auto adjustment
-        self.xy_check = QCheckBox("Check if molecule is within substrate XY plane")
+        self.xy_check = QCheckBox(self.lang.get_text('check_xy_plane'))
         self.xy_check.setChecked(True)
         translate_layout.addWidget(self.xy_check)
         
         # Auto adjust position button
-        self.adjust_btn = QPushButton("Auto Adjust Molecule Position")
+        self.adjust_btn = QPushButton(self.lang.get_text('auto_adjust'))
         translate_layout.addWidget(self.adjust_btn)
         
         translate_group.setLayout(translate_layout)
@@ -2229,9 +2269,9 @@ class AdsorptionGUI(QMainWindow):
         # Create action buttons
         action_layout = QHBoxLayout()
         # 修改按钮文本
-        self.create_btn = QPushButton("Reset Adsorption System")
-        self.validate_btn = QPushButton("Validate Structure")
-        self.export_btn = QPushButton("Export Structure")
+        self.create_btn = QPushButton(self.lang.get_text('reset_system'))
+        self.validate_btn = QPushButton(self.lang.get_text('validate_structure'))
+        self.export_btn = QPushButton(self.lang.get_text('export_structure'))
         
         action_layout.addWidget(self.create_btn)
         action_layout.addWidget(self.validate_btn)
@@ -2240,17 +2280,18 @@ class AdsorptionGUI(QMainWindow):
         control_layout.addLayout(action_layout)
         
         # Add status information
-        self.status_label = QLabel("Status: Ready")
+        self.status_label = QLabel(self.lang.get_text('status_ready'))
         control_layout.addWidget(self.status_label)
         
         # 添加批处理区域
-        batch_group = QGroupBox("批处理")
+        batch_group = QGroupBox(self.lang.get_text('batch_processing'))
+        self.batch_group = batch_group  # 保存组件引用
         batch_layout = QVBoxLayout()
         
         # 添加三个批处理按钮
-        self.site_batch_btn = QPushButton("Site位点批处理")
-        self.anchor_batch_btn = QPushButton("Anchor位点批处理")
-        self.path_batch_btn = QPushButton("路径批处理")
+        self.site_batch_btn = QPushButton(self.lang.get_text('site_batch'))
+        self.anchor_batch_btn = QPushButton(self.lang.get_text('anchor_batch'))
+        self.path_batch_btn = QPushButton(self.lang.get_text('path_batch'))
         
         batch_layout.addWidget(self.site_batch_btn)
         batch_layout.addWidget(self.anchor_batch_btn)
@@ -2275,7 +2316,7 @@ class AdsorptionGUI(QMainWindow):
         self.canvas.setMinimumSize(400, 300)
         
         # 添加保存图片按钮
-        self.save_fig_btn = QPushButton("保存当前视图")
+        self.save_fig_btn = QPushButton(self.lang.get_text('save_current_view'))
         self.save_fig_btn.clicked.connect(self.save_current_view)
         
         # 将3D视图和保存按钮添加到布局中
@@ -2292,14 +2333,15 @@ class AdsorptionGUI(QMainWindow):
         view3d_layout.addWidget(self.toolbar)
         
         # 添加视图控制按钮区域
-        view_control_group = QGroupBox("View Controls")
+        view_control_group = QGroupBox(self.lang.get_text('view_controls'))
+        self.view_control_group = view_control_group  # 保存组件引用
         view_control_layout = QVBoxLayout()
         
         # 缩放控制
         zoom_layout = QHBoxLayout()
-        self.zoom_in_btn = QPushButton("Zoom In")
-        self.zoom_out_btn = QPushButton("Zoom Out")
-        self.reset_view_btn = QPushButton("Reset View")
+        self.zoom_in_btn = QPushButton(self.lang.get_text('zoom_in'))
+        self.zoom_out_btn = QPushButton(self.lang.get_text('zoom_out'))
+        self.reset_view_btn = QPushButton(self.lang.get_text('reset_view'))
         zoom_layout.addWidget(self.zoom_in_btn)
         zoom_layout.addWidget(self.zoom_out_btn)
         zoom_layout.addWidget(self.reset_view_btn)
@@ -2307,10 +2349,10 @@ class AdsorptionGUI(QMainWindow):
         
         # 视角控制
         view_layout = QHBoxLayout()
-        view_layout.addWidget(QLabel("View Direction:"))
+        self.view_direction_label = QLabel(self.lang.get_text('view_direction'))
+        view_layout.addWidget(self.view_direction_label)
         self.view_direction = QComboBox()
-        self.view_direction.addItems(["Default", "A Axis", "B Axis", "C Axis", 
-                                     "A-B Plane", "B-C Plane", "A-C Plane"])
+        self.view_direction.addItems(self.lang.get_text('view_directions'))
         view_layout.addWidget(self.view_direction)
         view_control_layout.addLayout(view_layout)
         
@@ -2369,7 +2411,7 @@ class AdsorptionGUI(QMainWindow):
         
         # 添加仅旋转分子按钮区域
         rotation_buttons_layout = QHBoxLayout()
-        self.reset_rotation_btn = QPushButton("重置姿态")
+        self.reset_rotation_btn = QPushButton(self.lang.get_text('reset_pose'))
         rotation_buttons_layout.addWidget(self.reset_rotation_btn)
         rotate_layout.addLayout(rotation_buttons_layout)
         
@@ -2377,12 +2419,14 @@ class AdsorptionGUI(QMainWindow):
         adjust_layout.addWidget(rotate_group)
         
         # 添加XY偏移量控制组
-        offset_group = QGroupBox("XY平面偏移")
+        offset_group = QGroupBox(self.lang.get_text('xy_offset'))
+        self.offset_group = offset_group  # 保存组件引用
         offset_layout = QVBoxLayout()
         
         # X偏移
         x_offset_layout = QHBoxLayout()
-        x_offset_layout.addWidget(QLabel("X偏移:"))
+        self.x_offset_label = QLabel(self.lang.get_text('x_offset'))
+        x_offset_layout.addWidget(self.x_offset_label)
         self.x_offset_spin = QDoubleSpinBox()
         self.x_offset_spin.setRange(-10.0, 10.0)
         self.x_offset_spin.setValue(0.0)
@@ -2393,7 +2437,8 @@ class AdsorptionGUI(QMainWindow):
         
         # Y偏移
         y_offset_layout = QHBoxLayout()
-        y_offset_layout.addWidget(QLabel("Y偏移:"))
+        self.y_offset_label = QLabel(self.lang.get_text('y_offset'))
+        y_offset_layout.addWidget(self.y_offset_label)
         self.y_offset_spin = QDoubleSpinBox()
         self.y_offset_spin.setRange(-10.0, 10.0)
         self.y_offset_spin.setValue(0.0)
@@ -2464,9 +2509,9 @@ class AdsorptionGUI(QMainWindow):
     
     def update_rotation_label(self):
         """Update rotation angle labels"""
-        self.x_label.setText(f"{self.x_slider.value()}°")
-        self.y_label.setText(f"{self.y_slider.value()}°")
-        self.z_label.setText(f"{self.z_slider.value()}°")
+        self.x_label.setText(self.lang.get_text('rotation_angle').format(self.x_slider.value()))
+        self.y_label.setText(self.lang.get_text('rotation_angle').format(self.y_slider.value()))
+        self.z_label.setText(self.lang.get_text('rotation_angle').format(self.z_slider.value()))
     
     def update_ui_state(self):
         """Update UI state based on loaded data"""
@@ -2536,7 +2581,8 @@ class AdsorptionGUI(QMainWindow):
     def browse_molecule(self):
         """Browse and load molecule file"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Open Molecule File", "", "VASP Files (*.vasp);;XYZ Files (*.xyz);;CIF Files (*.cif);;All Files (*.*)"
+            self, self.lang.get_text('file_dialog_title').format('Molecule'), "", 
+            self.lang.get_text('file_dialog_filter')
         )
         
         if not file_path:
@@ -2546,7 +2592,7 @@ class AdsorptionGUI(QMainWindow):
             self.molecule = read(file_path)
             self.molecule_file = file_path
             self.mol_path.setText(file_path)
-            self.status_label.setText(f"Status: Loaded molecule with {len(self.molecule)} atoms")
+            self.status_label.setText(self.lang.get_text('status_loaded_molecule').format(len(self.molecule)))
             
             # 保存原始分子结构
             self.original_molecule = self.molecule.copy()
@@ -2560,19 +2606,21 @@ class AdsorptionGUI(QMainWindow):
             self.anchor.setMaximum(max_atom)
             if self.anchor.value() <= max_atom:
                 element = self.molecule.get_chemical_symbols()[self.anchor.value()]
-                self.anchor_element_label.setText(f"({element})")
+                self.anchor_element_label.setText(self.lang.get_text('anchor_element').format(element))
             
             # 如果基底已加载，自动创建吸附系统
             if self.substrate is not None:
                 self.create_adsorption_system()
             
         except Exception as e:
-            QMessageBox.warning(self, "Loading Error", f"Error loading molecule file: {str(e)}")
+            QMessageBox.warning(self, self.lang.get_text('loading_error'), 
+                              self.lang.get_text('error_loading_molecule').format(str(e)))
     
     def browse_substrate(self):
         """Browse and load substrate file"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Open Substrate File", "", "VASP Files (*.vasp);;XYZ Files (*.xyz);;CIF Files (*.cif);;All Files (*.*)"
+            self, self.lang.get_text('file_dialog_title').format('Substrate'), "", 
+            self.lang.get_text('file_dialog_filter')
         )
         
         if not file_path:
@@ -2582,7 +2630,7 @@ class AdsorptionGUI(QMainWindow):
             self.substrate = read(file_path)
             self.substrate_file = file_path
             self.sub_path.setText(file_path)
-            self.status_label.setText(f"Status: Loaded substrate with {len(self.substrate)} atoms")
+            self.status_label.setText(self.lang.get_text('status_loaded_substrate').format(len(self.substrate)))
             
             # Update UI
             self.update_ui_state()
@@ -2592,7 +2640,8 @@ class AdsorptionGUI(QMainWindow):
                 self.create_adsorption_system()
             
         except Exception as e:
-            QMessageBox.warning(self, "Loading Error", f"Error loading substrate file: {str(e)}")
+            QMessageBox.warning(self, self.lang.get_text('loading_error'), 
+                              self.lang.get_text('error_loading_substrate').format(str(e)))
     
     def open_site_selection(self):
         """打开吸附位点选择对话框"""
@@ -2707,13 +2756,13 @@ class AdsorptionGUI(QMainWindow):
     def create_adsorption_system(self):
         """Create adsorption system with the current parameters"""
         if not self.molecule or not self.substrate:
-            QMessageBox.warning(self, "提示", "请先加载分子和基底结构")
+            QMessageBox.warning(self, self.lang.get_text('warning'), self.lang.get_text('please_load_substrate_and_molecule_first'))
             return
         
         try:
             # 如果没有选择位点，提示用户
             if not hasattr(self, 'selected_site') or self.selected_site is None:
-                QMessageBox.warning(self, "提示", "请先选择吸附位点和分子上的锚点原子")
+                QMessageBox.warning(self, self.lang.get_text('warning'), self.lang.get_text('please_select_adsorption_site_first'))
                 return
 
             # 使用原始分子作为基础
@@ -2739,7 +2788,7 @@ class AdsorptionGUI(QMainWindow):
             if hasattr(self, 'anchor_style'):
                 anchor_style = self.anchor_style
             
-            self.status_label.setText("状态: 创建吸附系统...")
+            self.status_label.setText(self.lang.get_text('status_processing'))
             
             # 调用自定义函数创建吸附系统
             system, is_valid, issues = create_adsorption_system_custom(
@@ -2767,12 +2816,15 @@ class AdsorptionGUI(QMainWindow):
             # 显示问题（如果有）
             if not is_valid:
                 issue_text = "\n".join(issues)
-                QMessageBox.warning(self, "结构问题", 
-                    f"吸附系统存在以下问题:\n{issue_text}")
+                QMessageBox.warning(
+                    self, 
+                    self.lang.get_text('structure_issues'), 
+                    self.lang.get_text('system_issues').format(issue_text)
+                )
                 
-                self.status_label.setText(f"状态: 吸附系统创建完成，但存在问题: {', '.join(issues)}")
+                self.status_label.setText(self.lang.get_text('status_error') + ": " + ", ".join(issues))
             else:
-                self.status_label.setText("状态: 吸附系统创建成功")
+                self.status_label.setText(self.lang.get_text('status_created_adsorption_system_msg'))
                 
             # 更新UI
             self.update_ui_state()
@@ -2784,15 +2836,19 @@ class AdsorptionGUI(QMainWindow):
             self.update_projection_view()
                 
         except Exception as e:
-            QMessageBox.warning(self, "创建错误", f"创建吸附系统时出错: {str(e)}")
-            self.status_label.setText(f"状态: 创建吸附系统时出错: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('error'), 
+                self.lang.get_text('error_occurred_when_creating_adsorption_system').format(str(e))
+            )
+            self.status_label.setText(self.lang.get_text('status_error') + ": " + str(e))
             import traceback
             traceback.print_exc()
     
     def validate_adsorption_system(self):
         """Validate current adsorption system's reasonability"""
         if not self.adsorption_system:
-            QMessageBox.warning(self, "Error", "Please create adsorption system first")
+            QMessageBox.warning(self, self.lang.get_text('error'), self.lang.get_text('create_system_first'))
             return
         
         try:
@@ -2805,20 +2861,32 @@ class AdsorptionGUI(QMainWindow):
             
             # Display validation results
             if is_valid:
-                QMessageBox.information(self, "Validation Result", "Adsorption structure validation passed: Structure is reasonable")
-                self.status_label.setText("Status: Structure validation passed")
+                QMessageBox.information(
+                    self, 
+                    self.lang.get_text('validation_result'), 
+                    self.lang.get_text('validation_passed')
+                )
+                self.status_label.setText(self.lang.get_text('status_completed'))
             else:
                 issues_str = '\n'.join(issues)
-                QMessageBox.warning(self, "Validation Result", f"Adsorption structure validation failed:\n{issues_str}")
-                self.status_label.setText(f"Status: Structure validation failed")
+                QMessageBox.warning(
+                    self, 
+                    self.lang.get_text('validation_result'), 
+                    self.lang.get_text('validation_failed').format(issues_str)
+                )
+                self.status_label.setText(self.lang.get_text('status_error'))
             
         except Exception as e:
-            QMessageBox.warning(self, "Validation Error", f"Error validating adsorption system: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('validation_error'), 
+                self.lang.get_text('error_validating_system').format(str(e))
+            )
     
     def export_structure(self):
         """导出当前结构"""
         if not hasattr(self, 'adsorption_system') or self.adsorption_system is None:
-            QMessageBox.warning(self, "警告", "请先创建吸附系统")
+            QMessageBox.warning(self, self.lang.get_text('warning'), self.lang.get_text('no_structure_to_save'))
             return
             
         # 创建导出选项对话框
@@ -2850,7 +2918,7 @@ class AdsorptionGUI(QMainWindow):
                     self.adsorption_system.write(output_file, format='vasp', direct=(options['format'] == 'vasp_fractional'))
                 else:
                     self.adsorption_system.write(output_file, format=options['format'])
-                print(f"已保存吸附系统结构到: {output_file}")
+                print(self.lang.get_text('saved_system_to').format(output_file))
             
             if options['export_structures']:
                 # 保存基底结构
@@ -2861,7 +2929,7 @@ class AdsorptionGUI(QMainWindow):
                     write(slab_file, slab_with_cell, format='vasp', direct=(options['format'] == 'vasp_fractional'))
                 else:
                     write(slab_file, slab_with_cell, format=options['format'])
-                print(f"已保存基底结构到: {slab_file}")
+                print(self.lang.get_text('saved_substrate_to').format(slab_file))
                 
                 # 保存分子结构
                 mole_with_cell = self.adsorption_system[len(self.substrate):]
@@ -2870,7 +2938,7 @@ class AdsorptionGUI(QMainWindow):
                     write(mole_file, mole_with_cell, format='vasp', direct=(options['format'] == 'vasp_fractional'))
                 else:
                     write(mole_file, mole_with_cell, format=options['format'])
-                print(f"已保存分子结构到: {mole_file}")
+                print(self.lang.get_text('saved_molecule_to').format(mole_file))
             
             # 保存图片
             if options['export_figure']:
@@ -2885,30 +2953,40 @@ class AdsorptionGUI(QMainWindow):
                     canvas.figure.savefig(os.path.join(output_dir, f"{mole_name}_on_{slab_name}_{proj_type}_proj.png"), dpi=300, bbox_inches='tight')
                     canvas.clear_plot()
                     del canvas
+                
+                print(self.lang.get_text('images_saved_to_dir').format(output_dir))
             
             # 保存JSON状态
             if options['export_json']:
                 json_file = os.path.join(output_dir, f"{mole_name}_on_{slab_name}_state.json")
                 self.mute_export_json(json_file)
-                print(f"已保存状态到: {json_file}")
+                print(self.lang.get_text('saved_state_to').format(json_file))
             
             # 显示成功消息
-            QMessageBox.information(self, "导出成功", f"结构已成功导出到目录：\n{os.path.abspath(output_dir)}")
+            QMessageBox.information(
+                self, 
+                self.lang.get_text('export_success'), 
+                self.lang.get_text('export_success_msg').format(os.path.abspath(output_dir))
+            )
             
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"导出过程中发生错误：\n{str(e)}")
+            QMessageBox.critical(
+                self, 
+                self.lang.get_text('export_error'), 
+                self.lang.get_text('export_error_msg').format(str(e))
+            )
             import traceback
-            print("错误堆栈:")
+            print(self.lang.get_text('error') + ":")
             print(traceback.format_exc())
     
     def export_state(self):
         """导出当前吸附配置状态为JSON文件"""
         if not hasattr(self, 'substrate') or self.substrate is None:
-            QMessageBox.warning(self, "错误", "请先加载基底结构")
+            QMessageBox.warning(self, self.lang.get_text('error'), self.lang.get_text('warning_load_substrate_first'))
             return
             
         if not hasattr(self, 'selected_site') or self.selected_site is None:
-            QMessageBox.warning(self, "错误", "请先选择吸附位点")
+            QMessageBox.warning(self, self.lang.get_text('error'), self.lang.get_text('please_select_adsorption_site_first'))
             return
             
         # 生成默认文件名（基于substrate文件名和时间戳）
@@ -2925,7 +3003,7 @@ class AdsorptionGUI(QMainWindow):
         # 打开文件保存对话框
         file_dialog = QFileDialog()
         file_path, _ = file_dialog.getSaveFileName(
-            self, "导出吸附状态", default_filename, "JSON文件 (*.json);;所有文件 (*)"
+            self, self.lang.get_text('export_adsorption_state'), default_filename, self.lang.get_text('json_file_filter')
         )
         
         if not file_path:
@@ -2992,14 +3070,22 @@ class AdsorptionGUI(QMainWindow):
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(state_data, f, indent=4, ensure_ascii=False)
                 
-            self.status_label.setText(f"状态: 吸附状态已导出到 {file_path}")
-            QMessageBox.information(self, "导出成功", f"吸附状态已成功导出到:\n{file_path}")
+            self.status_label.setText(self.lang.get_text('status_state_exported').format(file_path))
+            QMessageBox.information(
+                self, 
+                self.lang.get_text('export_success'), 
+                self.lang.get_text('state_exported_successfully').format(file_path)
+            )
             
         except Exception as e:
-            QMessageBox.warning(self, "导出错误", f"导出状态时发生错误: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('export_error'), 
+                self.lang.get_text('error_occurred_when_exporting_adsorption_state').format(str(e))
+            )
             import traceback
             traceback.print_exc()
-            
+    
     def update_display(self):
         """Update the structure display based on the selected style"""
         if hasattr(self, 'adsorption_system') and self.adsorption_system is not None:
@@ -3012,7 +3098,7 @@ class AdsorptionGUI(QMainWindow):
     def plot_structure(self, atoms):
         """Draw atomic structure"""
         if not atoms:
-            print("Warning: No atoms provided to plot_structure")
+            print(f"{self.lang.get_text('warning')}: {self.lang.get_text('no_atoms_to_plot')}")
             return
         
         # 保存当前视角（如果存在）
@@ -3021,7 +3107,7 @@ class AdsorptionGUI(QMainWindow):
             try:
                 current_elev, current_azim = self.canvas.axes.elev, self.canvas.axes.azim
                 current_view = (current_elev, current_azim)
-                print(f"保存当前视角: 仰角={current_elev}, 方位角={current_azim}")
+                print(self.lang.get_text('saving_current_view_msg').format(current_elev, current_azim))
             except:
                 pass
         
@@ -3039,8 +3125,8 @@ class AdsorptionGUI(QMainWindow):
         positions = atoms.positions
         symbols = atoms.get_chemical_symbols()
         
-        print(f"Plotting structure with {len(atoms)} atoms")
-        print(f"First few positions: {positions[:3]}")
+        print(self.lang.get_text('plotting_structure_msg').format(len(atoms)))
+        print(self.lang.get_text('first_few_positions_msg').format(positions[:3]))
         
         # Get selected display style
         display_style = self.style_combo.currentText()
@@ -3510,28 +3596,30 @@ class AdsorptionGUI(QMainWindow):
     def change_view_direction(self):
         """根据选择更改视图方向"""
         view_option = self.view_direction.currentText()
+        view_directions = self.lang.get_text('view_directions')
         
-        if view_option == "Default":
+        if view_option == view_directions[0]:  # Default
             self.canvas.axes.view_init(elev=30, azim=30)
-        elif view_option == "A Axis":
+        elif view_option == view_directions[1]:  # A Axis
             self.canvas.axes.view_init(elev=0, azim=0)
-        elif view_option == "B Axis":
+        elif view_option == view_directions[2]:  # B Axis
             self.canvas.axes.view_init(elev=0, azim=90)
-        elif view_option == "C Axis":
+        elif view_option == view_directions[3]:  # C Axis
             self.canvas.axes.view_init(elev=90, azim=0)
-        elif view_option == "A-B Plane":
+        elif view_option == view_directions[4]:  # A-B Plane
             self.canvas.axes.view_init(elev=0, azim=45)
-        elif view_option == "B-C Plane":
+        elif view_option == view_directions[5]:  # B-C Plane
             self.canvas.axes.view_init(elev=45, azim=90)
-        elif view_option == "A-C Plane":
+        elif view_option == view_directions[6]:  # A-C Plane
             self.canvas.axes.view_init(elev=45, azim=0)
         
         self.canvas.draw()
+        self.status_label.setText(self.lang.get_text('status_view_direction_changed').format(view_option))
 
     def open_anchor_selection(self):
         """打开锚点原子选择对话框"""
         if not self.molecule:
-            QMessageBox.warning(self, "Error", "请先加载分子结构")
+            QMessageBox.warning(self, self.lang.get_text('error'), self.lang.get_text('please_load_molecule_first'))
             return
         
         try:
@@ -3549,7 +3637,7 @@ class AdsorptionGUI(QMainWindow):
             
                     # 获取选中原子的元素符号
                     element = self.molecule.get_chemical_symbols()[selected_atom]
-                    self.anchor_element_label.setText(f"({element})")
+                    self.anchor_element_label.setText(self.lang.get_text('anchor_element').format(element))
             
                     # 如果需要调整分子方向
                     if adjust:
@@ -3563,7 +3651,11 @@ class AdsorptionGUI(QMainWindow):
                         self.update_anchor_style("none", True)
             
         except Exception as e:
-            QMessageBox.warning(self, "选择错误", f"选择锚点时出错: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('selection_error'), 
+                self.lang.get_text('error_selecting_anchor').format(str(e))
+            )
             import traceback
             traceback.print_exc()
 
@@ -3592,7 +3684,11 @@ class AdsorptionGUI(QMainWindow):
                 self.create_adsorption_system()
             
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"调整分子方向时出错: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('orientation_error'), 
+                self.lang.get_text('error_adjusting_molecule_orientation').format(str(e))
+            )
             import traceback
             traceback.print_exc()
 
@@ -3637,7 +3733,7 @@ class AdsorptionGUI(QMainWindow):
                 self.yz_canvas.plot_projection(None, self.molecule)
         
         except Exception as e:
-            print(f"Error updating projection views: {str(e)}")
+            print(f"{self.lang.get_text('error_updating_projection_views')}: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -3721,12 +3817,16 @@ class AdsorptionGUI(QMainWindow):
             self.update_projection_view()
             
             if self.keep_vertical.isChecked() and self.vertical_adjustment_applied:
-                self.status_label.setText("状态: 已应用旋转（保持垂直调整）")
+                self.status_label.setText(self.lang.get_text('status_rotation_applied_with_vertical_adjustment'))
             else:
-                self.status_label.setText("状态: 已应用旋转")
+                self.status_label.setText(self.lang.get_text('status_rotation_applied'))
                 
         except Exception as e:
-            QMessageBox.warning(self, "Rotation Error", f"Error applying rotation: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('rotation_error'), 
+                self.lang.get_text('error_applying_rotation').format(str(e))
+            )
 
     def auto_adjust_position(self):
         """调整分子高度，确保与表面保持最小距离"""
@@ -3742,7 +3842,7 @@ class AdsorptionGUI(QMainWindow):
             max_z_substrate = np.max(substrate_positions[:, 2])
             max_z_indices = np.where(substrate_positions[:, 2] >= max_z_substrate - 0.1)[0]
             
-            print(f"表面原子z轴最高位置: {max_z_substrate}")
+            print(f"{self.lang.get_text('surface_atoms_highest_z')}: {max_z_substrate}")
             
             # 获取当前分子部分
             n_substrate = len(self.substrate)
@@ -3754,17 +3854,17 @@ class AdsorptionGUI(QMainWindow):
             min_z_molecule = np.min(molecule_positions[:, 2])
             min_z_index = np.argmin(molecule_positions[:, 2])
             
-            print(f"分子z轴最低原子索引: {min_z_index}, 位置: {molecule_positions[min_z_index]}")
+            print(f"{self.lang.get_text('molecule_lowest_z_atom_index')}: {min_z_index}, {self.lang.get_text('position')}: {molecule_positions[min_z_index]}")
             
             # 计算当前分子最低点到表面的距离
             current_distance = min_z_molecule - max_z_substrate
-            print(f"当前分子最低点到表面的距离: {current_distance:.4f} Å")
+            print(f"{self.lang.get_text('current_molecule_distance_to_surface')}: {current_distance:.4f} Å")
             
             # 如果距离小于1.5A，需要调整
             if current_distance < 1.5:
                 # 计算需要的位移
                 z_shift = 1.5 - current_distance
-                print(f"需要向上移动: {z_shift:.4f} Å")
+                print(f"{self.lang.get_text('need_upward_shift')}: {z_shift:.4f} Å")
                 
                 # 应用位移到所有分子原子
                 for i, idx in enumerate(molecule_indices):
@@ -3789,13 +3889,13 @@ class AdsorptionGUI(QMainWindow):
                 # 更新投影视图
                 self.update_projection_view()
                 
-                print(f"已自动调整分子高度，移动量: {z_shift:.4f} Å")
-                self.status_label.setText(f"状态: 已将分子最低点调整到表面上方1.5Å处")
+                print(f"{self.lang.get_text('auto_adjusted_molecule_height')}: {z_shift:.4f} Å")
+                self.status_label.setText(self.lang.get_text('status_molecule_adjusted_to_safe_distance'))
             else:
-                print('分子与表面距离合理，无需调整')
+                print(self.lang.get_text('molecule_surface_distance_reasonable'))
                 
         except Exception as e:
-            print(f"自动调整位置时出错: {str(e)}")
+            print(f"{self.lang.get_text('error_auto_adjusting_position')}: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -3859,10 +3959,10 @@ class AdsorptionGUI(QMainWindow):
             self.update_projection_view()
             
             # 更新状态栏
-            self.status_label.setText(f"状态: 已调整分子到表面的距离为 {height} Å")
+            self.status_label.setText(self.lang.get_text('status_distance_adjusted').format(height))
             
         except Exception as e:
-            print(f"Error updating distance from surface: {str(e)}")
+            print(f"{self.lang.get_text('error_updating_distance')}: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -3935,7 +4035,7 @@ class AdsorptionGUI(QMainWindow):
             self.update_projection_view()
             
             # 更新状态栏
-            self.status_label.setText(TRANSLATIONS[self.current_language]['status_adjusted_cell_height_msg'].format(vacuum_height))
+            self.status_label.setText(f"状态: 已调整晶胞高度以满足最小真空高度 {vacuum_height} Å")
         else:
             # 获取原子位置
             positions = self.adsorption_system.get_positions()
@@ -3962,9 +4062,9 @@ class AdsorptionGUI(QMainWindow):
         
     def update_rotation_label(self):
         """Update rotation angle labels"""
-        self.x_label.setText(f"{self.x_slider.value()}°")
-        self.y_label.setText(f"{self.y_slider.value()}°")
-        self.z_label.setText(f"{self.z_slider.value()}°")
+        self.x_label.setText(self.lang.get_text('rotation_angle').format(self.x_slider.value()))
+        self.y_label.setText(self.lang.get_text('rotation_angle').format(self.y_slider.value()))
+        self.z_label.setText(self.lang.get_text('rotation_angle').format(self.z_slider.value()))
 
     # 添加重置旋转方法
     def reset_rotation(self):
@@ -4019,9 +4119,13 @@ class AdsorptionGUI(QMainWindow):
             # 重新创建吸附系统
             self.create_adsorption_system()
             
-            self.status_label.setText("状态: 已重置分子姿态（旋转和偏移）")
+            self.status_label.setText(self.lang.get_text('status_reset_molecule_pose_msg'))
         except Exception as e:
-            QMessageBox.warning(self, "重置错误", f"重置分子姿态时出错: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('reset_error'), 
+                self.lang.get_text('reset_molecule_pose_error_msg').format(str(e))
+            )
             import traceback
             traceback.print_exc()
 
@@ -4052,27 +4156,31 @@ class AdsorptionGUI(QMainWindow):
                     
                     # 更新状态
                     if self.anchor_style == "center":
-                        style_text = "质心垂直"
+                        style_text = self.lang.get_text('anchor_perpendicular_to_molecule_center')
                     elif self.anchor_style == "carbon":
-                        style_text = "相连碳原子垂直"
+                        style_text = self.lang.get_text('anchor_perpendicular_to_C_atom')
                     else:
-                        style_text = "无调整"
+                        style_text = self.lang.get_text('keep_current_molecule_state')
                     
-                    self.status_label.setText(f"状态: 应用了垂直调整：{style_text}")
+                    self.status_label.setText(self.lang.get_text('status_applied_vertical_adjustment_msg').format(style_text))
                 except ValueError as e:
-                    print(f"垂直调整错误: {str(e)}")
+                    print(self.lang.get_text('vertical_adjustment_error_msg').format(str(e)))
                     self.initial_molecule = self.original_molecule.copy()
                     self.vertical_adjustment_applied = False
-                    self.status_label.setText(f"状态: 垂直调整失败: {str(e)}")
+                    self.status_label.setText(self.lang.get_text('status_vertical_adjustment_failed_msg').format(str(e)))
             else:
                 # 如果不需要垂直调整，直接使用原始分子
                 self.initial_molecule = self.original_molecule.copy()
                 self.vertical_adjustment_applied = False
-                self.status_label.setText("状态: 未应用垂直调整")
+                self.status_label.setText(self.lang.get_text('status_no_vertical_adjustment_applied_msg'))
                 
         except Exception as e:
-            QMessageBox.warning(self, "错误", f"创建初始分子结构时出错: {str(e)}")
-            self.status_label.setText(f"状态: 创建初始分子结构时出错: {str(e)}")
+            QMessageBox.warning(
+                self, 
+                self.lang.get_text('error'), 
+                self.lang.get_text('status_error_occurred_when_creating_initial_molecule_structure').format(str(e))
+            )
+            self.status_label.setText(self.lang.get_text('status_error') + ": " + str(e))
             import traceback
             traceback.print_exc()
 
@@ -4113,22 +4221,24 @@ class AdsorptionGUI(QMainWindow):
         self.plot_structure(self.adsorption_system)
         self.update_projection_view()
         
-        self.status_label.setText(f"状态: 应用XY偏移 (X: {self.x_offset:.2f} Å, Y: {self.y_offset:.2f} Å)")
+        # 更新状态标签
+        status_text = f"{self.lang.get_text('status_ready')}: {self.lang.get_text('xy_offset')} (X: {self.x_offset:.2f} Å, Y: {self.y_offset:.2f} Å)"
+        self.status_label.setText(status_text)
 
     def import_state(self):
         """Import adsorption state from JSON file"""
         if not hasattr(self, 'substrate') or self.substrate is None:
-            QMessageBox.warning(self, "错误", "请先加载基底结构")
+            QMessageBox.warning(self, self.lang.get_text('error'), self.lang.get_text('warning_load_substrate_first'))
             return
             
         if not hasattr(self, 'selected_site') or self.selected_site is None:
-            QMessageBox.warning(self, "错误", "请先选择吸附位点")
+            QMessageBox.warning(self, self.lang.get_text('error'), self.lang.get_text('please_select_adsorption_site_first'))
             return
             
         # 打开文件选择对话框
         file_dialog = QFileDialog()
         file_path, _ = file_dialog.getOpenFileName(
-            self, "导入吸附状态", "", "JSON文件 (*.json);;所有文件 (*)"
+            self, self.lang.get_text('import_adsorption_state'), "", self.lang.get_text('json_file_filter')
         )
         
         if not file_path:
@@ -4196,7 +4306,7 @@ class AdsorptionGUI(QMainWindow):
             # 设置吸附位点
             if adsorption_coord_cartesian:
                 self.selected_site = adsorption_coord_cartesian
-                self.status_label.setText(f"状态: 已从 {file_path} 导入吸附状态")
+                self.status_label.setText(self.lang.get_text('status_state_imported').format(file_path))
             elif adsorption_coord_fractional:
                 # 转换分数坐标到笛卡尔坐标
                 cell = self.substrate.get_cell()
@@ -4205,15 +4315,15 @@ class AdsorptionGUI(QMainWindow):
                 adsorption_coord_cartesian = adsorption_coord_cartesian.tolist()
                 
                 self.selected_site = adsorption_coord_cartesian
-                self.status_label.setText(f"状态: 已从 {file_path} 导入吸附状态")
+                self.status_label.setText(self.lang.get_text('status_state_imported').format(file_path))
             else:
-                QMessageBox.warning(self, "导入错误", "未找到有效的吸附坐标")
+                QMessageBox.warning(self, self.lang.get_text('import_error'), self.lang.get_text('no_valid_adsorption_coordinates_found'))
             
             # 重新创建吸附系统
             self.create_adsorption_system()
             
         except Exception as e:
-            QMessageBox.warning(self, "导入错误", f"导入状态时发生错误: {str(e)}")
+            QMessageBox.warning(self, self.lang.get_text('import_error'), self.lang.get_text('error_occurred_when_importing_adsorption_state').format(str(e)))
             import traceback
             traceback.print_exc()
 
@@ -4250,7 +4360,7 @@ class AdsorptionGUI(QMainWindow):
             from .batch_dialogs import BatchSiteSelectionDialog
             
         if self.substrate is None:
-            QMessageBox.warning(self, "警告", "请先加载基底结构")
+            QMessageBox.warning(self, self.lang.get_text('warning'), self.lang.get_text('warning_load_substrate_first'))
             return
             
         # 创建对话框
@@ -4281,7 +4391,7 @@ class AdsorptionGUI(QMainWindow):
             slab_name = os.path.splitext(os.path.basename(self.substrate_file))[0]
             
             # 创建进度对话框
-            progress = QProgressDialog("正在处理批量位点...", "取消", 0, len(selected_sites), self)
+            progress = QProgressDialog(self.lang.get_text('status_processing'), self.lang.get_text('cancel'), 0, len(selected_sites), self)
             progress.setWindowModality(Qt.WindowModal)
             progress.setMinimumDuration(0)  # 立即显示进度条
             progress.setAutoClose(True)  # 完成后自动关闭
@@ -4342,7 +4452,7 @@ class AdsorptionGUI(QMainWindow):
                     if export_options['export_adsorption']:
                         tail = export_options['export_format'].split('_')[0]
                         output_file = os.path.join(output_dir, f"combine-{base_filename}.{tail}")
-                        print(f"保存吸附结构到: {output_file}")
+                        print(self.lang.get_text('saved_system_to').format(output_file))
                         if export_options['export_format'] in ['vasp_cartesian', 'vasp_fractional']:
                             write(output_file, adsorption_system, format='vasp', direct=(export_options['export_format'] == 'vasp_fractional'))
                         else:
@@ -4387,7 +4497,7 @@ class AdsorptionGUI(QMainWindow):
                     if export_options['export_json']:
                         json_file = os.path.join(state_dir, f"{base_filename}_state.json")
                         self.mute_export_json(json_file)
-                        print(f"保存状态到: {json_file}")
+                        print(self.lang.get_text('saved_state_to').format(json_file))
                     
                     # 更新进度
                     progress.setValue(i + 1)
@@ -4396,12 +4506,12 @@ class AdsorptionGUI(QMainWindow):
                 except Exception as e:
                     print(f"处理位点 {i + 1} 时出错: {str(e)}")
                     import traceback
-                    print("错误堆栈:")
+                    print(self.lang.get_text('error'))
                     print(traceback.format_exc())
                     continue
             
             if not progress.wasCanceled():
-                QMessageBox.information(self, "完成", f"批量位点处理完成，结果保存在 {output_dir} 目录下")
+                QMessageBox.information(self, self.lang.get_text('completed'), self.lang.get_text('batch_site_processing_completed_msg').format(output_dir))
 
     def batch_anchor_process(self):
         """处理批量锚点选择"""
@@ -4411,11 +4521,11 @@ class AdsorptionGUI(QMainWindow):
             from .batch_dialogs import BatchAnchorSelectionDialog
             
         if self.molecule is None:
-            QMessageBox.warning(self, "警告", "请先加载分子结构")
+            QMessageBox.warning(self, self.lang.get_text('warning'), self.lang.get_text('please_load_molecule_first'))
             return
             
         if self.selected_site is None:
-            QMessageBox.warning(self, "警告", "请先选择吸附位点")
+            QMessageBox.warning(self, self.lang.get_text('warning'), self.lang.get_text('please_select_adsorption_site_first'))
             return
             
         # 创建对话框
@@ -4446,7 +4556,7 @@ class AdsorptionGUI(QMainWindow):
             slab_name = os.path.splitext(os.path.basename(self.substrate_file))[0]
 
             # 创建进度对话框
-            progress = QProgressDialog("正在处理批量锚点...", "取消", 0, len(selected_anchors), self)
+            progress = QProgressDialog(self.lang.get_text('status_processing'), self.lang.get_text('cancel'), 0, len(selected_anchors), self)
             progress.setWindowModality(Qt.WindowModal)
             progress.setMinimumDuration(0)  # 立即显示进度条
             progress.setAutoClose(True)  # 完成后自动关闭
@@ -4756,11 +4866,11 @@ class AdsorptionGUI(QMainWindow):
     def save_current_view(self):
         """保存当前3D视图和投影图"""
         if not hasattr(self, 'adsorption_system') or self.adsorption_system is None:
-            QMessageBox.warning(self, "警告", "没有可保存的结构")
+            QMessageBox.warning(self, self.lang.get_text('warning'), self.lang.get_text('no_structure_to_save'))
             return
             
         # 获取文件名前缀
-        prefix, ok = QInputDialog.getText(self, "保存图片", "请输入文件名前缀：")
+        prefix, ok = QInputDialog.getText(self, self.lang.get_text('save_current_view'), self.lang.get_text('base_name'))
         if not ok or not prefix:
             return
             
@@ -4784,7 +4894,7 @@ class AdsorptionGUI(QMainWindow):
             canvas.figure.clear()
             plt.close(canvas.figure)
             
-        QMessageBox.information(self, "成功", f"图片已保存到 {output_dir} 目录")
+        QMessageBox.information(self, self.lang.get_text('completed'), self.lang.get_text('images_saved_to_dir').format(output_dir))
 
     def mute_export_json(self, json_file):
         """导出当前吸附配置状态为JSON文件，不进行目录管理"""
@@ -4851,14 +4961,210 @@ class AdsorptionGUI(QMainWindow):
             with open(json_file, 'w', encoding='utf-8') as f:
                 json.dump(state_data, f, indent=4, ensure_ascii=False)
                 
-            self.status_label.setText(f"状态: 吸附状态已导出到 {json_file}")
+            self.status_label.setText(self.lang.get_text('status_state_exported').format(json_file))
             #QMessageBox.information(self, "导出成功", f"吸附状态已成功导出到:\n{json_file}")
             
         except Exception as e:
             #QMessageBox.warning(self, "导出错误", f"导出状态时发生错误: {str(e)}")
             import traceback
-            print("错误堆栈:")
+            print(self.lang.get_text('error'))
             print(traceback.format_exc())
+
+    def create_menu_bar(self):
+        """创建菜单栏"""
+        menubar = self.menuBar()
+        
+        # 文件菜单
+        file_menu = menubar.addMenu(TRANSLATIONS[self.current_language]['file'])
+        
+        # 导入分子
+        import_molecule_action = QAction(TRANSLATIONS[self.current_language]['import_molecule'], self)
+        import_molecule_action.triggered.connect(self.browse_molecule)
+        file_menu.addAction(import_molecule_action)
+        
+        # 导入基底
+        import_substrate_action = QAction(TRANSLATIONS[self.current_language]['import_substrate'], self)
+        import_substrate_action.triggered.connect(self.browse_substrate)
+        file_menu.addAction(import_substrate_action)
+        
+        file_menu.addSeparator()
+        
+        # 导入状态
+        import_state_action = QAction(TRANSLATIONS[self.current_language]['import_state'], self)
+        import_state_action.triggered.connect(self.import_state)
+        file_menu.addAction(import_state_action)
+        
+        # 导出状态
+        export_state_action = QAction(TRANSLATIONS[self.current_language]['export_state'], self)
+        export_state_action.triggered.connect(self.export_state)
+        file_menu.addAction(export_state_action)
+        
+        file_menu.addSeparator()
+        
+        # 导出结构
+        export_structure_action = QAction(TRANSLATIONS[self.current_language]['export_structure'], self)
+        export_structure_action.triggered.connect(self.export_structure)
+        file_menu.addAction(export_structure_action)
+        
+        # 视图菜单
+        view_menu = menubar.addMenu(TRANSLATIONS[self.current_language]['view'])
+        
+        # 保存当前视图
+        save_view_action = QAction(TRANSLATIONS[self.current_language]['save_current_view'], self)
+        save_view_action.triggered.connect(self.save_current_view)
+        view_menu.addAction(save_view_action)
+        
+        # 重置视图
+        reset_view_action = QAction(TRANSLATIONS[self.current_language]['reset_view'], self)
+        reset_view_action.triggered.connect(self.reset_view)
+        view_menu.addAction(reset_view_action)
+        
+        # 语言菜单
+        language_menu = menubar.addMenu(TRANSLATIONS[self.current_language]['language'])
+        
+        # 英语
+        english_action = QAction('English', self)
+        english_action.triggered.connect(lambda: self.change_language('en'))
+        language_menu.addAction(english_action)
+        
+        # 中文
+        chinese_action = QAction('中文', self)
+        chinese_action.triggered.connect(lambda: self.change_language('zh'))
+        language_menu.addAction(chinese_action)
+
+    def change_language(self, language):
+        """
+        切换界面语言
+        
+        参数:
+            language (str): 目标语言代码 ('en' 或 'zh')
+        """
+        if language in ['en', 'zh']:
+            self.current_language = language
+            self.update_language()
+
+    def update_language(self):
+        """更新所有UI元素的语言"""
+        # 检查必要的属性是否存在
+        required_attrs = [
+            'file_group', 'mol_label', 'mol_browse', 'sub_label', 'sub_browse',
+            'import_state_btn', 'export_state_btn', 'adsorption_group', 'site_label',
+            'site_select', 'height_label', 'vacuum_label', 'anchor_label',
+            'select_anchor_btn', 'adjust_group', 'rotate_group', 'x_axis_label',
+            'y_axis_label', 'z_axis_label', 'translate_group', 'keep_vertical',
+            'xy_check', 'adjust_btn', 'create_btn', 'validate_btn', 'export_btn',
+            'status_label', 'site_batch_btn', 'anchor_batch_btn', 'path_batch_btn',
+            'view_control_group', 'zoom_in_btn', 'zoom_out_btn', 'reset_view_btn',
+            'offset_group', 'x_offset_label', 'y_offset_label', 'view_direction_label'
+        ]
+        
+        # 检查缺失的属性
+        missing_attrs = [attr for attr in required_attrs if not hasattr(self, attr)]
+        if missing_attrs:
+            print(f"Warning: Missing UI attributes: {missing_attrs}")
+            return
+            
+        # 更新窗口标题
+        self.setWindowTitle(TRANSLATIONS[self.current_language]['window_title'])
+        
+        # 添加试图方向标签的更新
+        self.view_direction_label.setText(TRANSLATIONS[self.current_language]['view_direction'])
+        
+        # 更新文件操作组
+        self.file_group.setTitle(TRANSLATIONS[self.current_language]['file_operations'])
+        self.mol_label.setText(TRANSLATIONS[self.current_language]['molecule_file'])
+        self.mol_browse.setText(TRANSLATIONS[self.current_language]['browse'])
+        self.sub_label.setText(TRANSLATIONS[self.current_language]['substrate_file'])
+        self.sub_browse.setText(TRANSLATIONS[self.current_language]['browse'])
+        self.import_state_btn.setText(TRANSLATIONS[self.current_language]['import_state'])
+        self.export_state_btn.setText(TRANSLATIONS[self.current_language]['export_state'])
+        
+        # 更新吸附参数组
+        self.adsorption_group.setTitle(TRANSLATIONS[self.current_language]['adsorption_parameters'])
+        self.site_label.setText(TRANSLATIONS[self.current_language]['adsorption_site'])
+        self.site_select.setText(TRANSLATIONS[self.current_language]['select_site'])
+        self.height_label.setText(TRANSLATIONS[self.current_language]['distance_from_surface'])
+        self.vacuum_label.setText(TRANSLATIONS[self.current_language]['minimum_vacuum'])
+        self.anchor_label.setText(TRANSLATIONS[self.current_language]['anchor_atom'])
+        self.select_anchor_btn.setText(TRANSLATIONS[self.current_language]['select_by_structure'])
+        
+        # 更新分子调整组
+        self.adjust_group.setTitle(TRANSLATIONS[self.current_language]['molecule_adjustment'])
+        self.rotate_group.setTitle(TRANSLATIONS[self.current_language]['rotation_controls'])
+        self.x_axis_label.setText(TRANSLATIONS[self.current_language]['x_axis'])
+        self.y_axis_label.setText(TRANSLATIONS[self.current_language]['y_axis'])
+        self.z_axis_label.setText(TRANSLATIONS[self.current_language]['z_axis'])
+        
+        # 更新平移调整组
+        self.translate_group.setTitle(TRANSLATIONS[self.current_language]['translation_adjustment'])
+        self.keep_vertical.setText(TRANSLATIONS[self.current_language]['keep_vertical'])
+        self.xy_check.setText(TRANSLATIONS[self.current_language]['check_xy_plane'])
+        self.adjust_btn.setText(TRANSLATIONS[self.current_language]['auto_adjust'])
+        
+        # 更新操作按钮
+        self.create_btn.setText(TRANSLATIONS[self.current_language]['reset_system'])
+        self.validate_btn.setText(TRANSLATIONS[self.current_language]['validate_structure'])
+        self.export_btn.setText(TRANSLATIONS[self.current_language]['export_structure'])
+        
+        # 更新状态标签
+        self.status_label.setText(TRANSLATIONS[self.current_language]['status_ready'])
+        
+        # 更新批处理按钮
+        self.site_batch_btn.setText(TRANSLATIONS[self.current_language]['site_batch'])
+        self.anchor_batch_btn.setText(TRANSLATIONS[self.current_language]['anchor_batch'])
+        self.path_batch_btn.setText(TRANSLATIONS[self.current_language]['path_batch'])
+        
+        # 更新视图控制组
+        self.view_control_group.setTitle(TRANSLATIONS[self.current_language]['view_controls'])
+        self.zoom_in_btn.setText(TRANSLATIONS[self.current_language]['zoom_in'])
+        self.zoom_out_btn.setText(TRANSLATIONS[self.current_language]['zoom_out'])
+        self.reset_view_btn.setText(TRANSLATIONS[self.current_language]['reset_view'])
+        
+        # 更新偏移组
+        self.offset_group.setTitle(TRANSLATIONS[self.current_language]['xy_offset'])
+        self.x_offset_label.setText(TRANSLATIONS[self.current_language]['x_offset'])
+        self.y_offset_label.setText(TRANSLATIONS[self.current_language]['y_offset'])
+        
+        # 更新重置姿态按钮和保存视图按钮
+        self.reset_rotation_btn.setText(TRANSLATIONS[self.current_language]['reset_pose'])
+        self.save_fig_btn.setText(TRANSLATIONS[self.current_language]['save_current_view'])
+        
+        # 更新显示样式和吸附位点下拉框
+        self.style_combo.clear()
+        self.style_combo.addItems(TRANSLATIONS[self.current_language]['display_styles'])
+        self.site_combo.clear()
+        self.site_combo.addItems(TRANSLATIONS[self.current_language]['site_types'])
+        
+        # 更新菜单栏文本
+        menubar = self.menuBar()
+        if menubar and len(menubar.actions()) >= 3:
+            # 获取主菜单
+            file_menu = menubar.actions()[0].menu()
+            view_menu = menubar.actions()[1].menu()
+            lang_menu = menubar.actions()[2].menu()
+            
+            # 更新菜单标题
+            menubar.actions()[0].setText(TRANSLATIONS[self.current_language]['file'])
+            menubar.actions()[1].setText(TRANSLATIONS[self.current_language]['view'])
+            menubar.actions()[2].setText(TRANSLATIONS[self.current_language]['language'])
+            
+            # 更新文件菜单项
+            if file_menu and len(file_menu.actions()) >= 7:
+                file_menu.actions()[0].setText(TRANSLATIONS[self.current_language]['import_molecule'])
+                file_menu.actions()[1].setText(TRANSLATIONS[self.current_language]['import_substrate'])
+                file_menu.actions()[3].setText(TRANSLATIONS[self.current_language]['import_state'])
+                file_menu.actions()[4].setText(TRANSLATIONS[self.current_language]['export_state'])
+                file_menu.actions()[6].setText(TRANSLATIONS[self.current_language]['export_structure'])
+            
+            # 更新视图菜单项
+            if view_menu and len(view_menu.actions()) >= 2:
+                view_menu.actions()[0].setText(TRANSLATIONS[self.current_language]['save_current_view'])
+                view_menu.actions()[1].setText(TRANSLATIONS[self.current_language]['reset_view'])
+        else:
+            # 如果菜单栏不存在或结构不匹配，则创建新的
+            print("无法更新菜单栏，重新创建")
+            menubar.clear()
+            self.create_menu_bar()
 
 
 # 添加处理中文字体的全局设置
@@ -4871,9 +5177,11 @@ def setup_chinese_font():
         plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
         # 修复负号显示问题
         plt.rcParams['axes.unicode_minus'] = False
-        print("设置中文字体完成")
+        from molecular_adsorption.languages import LanguageManager
+        lang = LanguageManager()
+        print(lang.get_text('chinese_font_setup_completed'))
     except Exception as e:
-        print(f"设置中文字体时出错: {str(e)}")
+        print(lang.get_text('error_setting_chinese_font').format(str(e)))
         # 回退到英文标签
         pass
 
@@ -5044,7 +5352,8 @@ def create_adsorption_system_custom(original_molecule, substrate, site_position,
                             height=2.0, x_angle=0, y_angle=0, z_angle=0, 
                             x_offset=0.0, y_offset=0.0, anchor_atom=0,
                             anchor_style="none", min_vacuum_above=10.0, 
-                            check_position=True, validate=True, adjust_vacuum=True):
+                            check_position=True, validate=True, adjust_vacuum=True,
+                            lang=None):
     """
     创建分子吸附系统(完整版)
     
@@ -5061,10 +5370,15 @@ def create_adsorption_system_custom(original_molecule, substrate, site_position,
         check_position (bool): 是否检查并调整分子位置，使其在基底内
         validate (bool): 是否验证吸附结构的合理性
         adjust_vacuum (bool): 是否调整真空层高度
+        lang (LanguageManager): 语言管理器实例，如果为None则创建一个新实例
         
     返回:
         tuple: (吸附系统, 是否合理, 问题列表)
     """
+    # 如果没有提供语言管理器，创建一个新实例
+    if lang is None:
+        lang = LanguageManager()
+    
     # 创建基底的副本
     substrate_copy = substrate.copy()
     
@@ -5082,7 +5396,7 @@ def create_adsorption_system_custom(original_molecule, substrate, site_position,
                 reference_type
             )
         except ValueError as e:
-            print(f"垂直调整错误: {str(e)}")
+            print(f"{lang.get_text('vertical_adjustment_error_msg').format(str(e))}")
             # 如果调整失败，使用原始分子
             initial_molecule = original_molecule.copy()
     
@@ -5110,12 +5424,12 @@ def create_adsorption_system_custom(original_molecule, substrate, site_position,
         site_position = np.array(site_position)
     
     # 打印定位前的关键信息
-    print(f"定位信息：")
-    print(f"- 锚点原子索引: {anchor_atom}")
-    print(f"- 选定位点坐标: {site_position}")
-    print(f"- 当前锚点位置: {molecule_to_position[anchor_atom].position}")
-    print(f"- 高度: {height} Å")
-    print(f"- 偏移量: X={x_offset}, Y={y_offset} Å")
+    print(f"{lang.get_text('positioning_info')}:")
+    print(f"- {lang.get_text('anchor_atom_index')}: {anchor_atom}")
+    print(f"- {lang.get_text('selected_site_coordinates')}: {site_position}")
+    print(f"- {lang.get_text('current_anchor_position')}: {molecule_to_position[anchor_atom].position}")
+    print(f"- {lang.get_text('height')}: {height} Å")
+    print(f"- {lang.get_text('offset')}: X={x_offset}, Y={y_offset} Å")
     
     # 计算新的锚定原子位置（包含XY偏移和高度）
     new_anchor_pos = np.array([
@@ -5135,17 +5449,17 @@ def create_adsorption_system_custom(original_molecule, substrate, site_position,
     expected_pos = np.array([site_position[0] + x_offset, site_position[1] + y_offset, site_position[2] + height])
     position_error = np.linalg.norm(actual_anchor_pos - expected_pos)
     if position_error > 1e-10:
-        print(f"警告：定位误差 {position_error:.10f} Å")
-        print(f"- 预期位置: {expected_pos}")
-        print(f"- 实际位置: {actual_anchor_pos}")
+        print(f"{lang.get_text('warning')}: {lang.get_text('positioning_error_msg')} {position_error:.10f} Å")
+        print(f"- {lang.get_text('expected_position')}: {expected_pos}")
+        print(f"- {lang.get_text('actual_position')}: {actual_anchor_pos}")
     else:
-        print(f"定位成功，锚点精确放置在目标位置")
+        print(f"{lang.get_text('positioning_success_msg')}")
     
     # 检查是否需要调整分子在XY平面内的位置
     if check_position:
         in_bounds = is_molecule_inside_substrate_xy(molecule_to_position, substrate_copy)
         if not in_bounds:
-            print("分子不在基底XY范围内，进行周期性调整")
+            print(f"{lang.get_text('molecule_outside_substrate_xy_msg')}")
             
             # 获取基底的晶胞参数
             cell = substrate_copy.get_cell()
@@ -5184,9 +5498,9 @@ def create_adsorption_system_custom(original_molecule, substrate, site_position,
             # 验证锚点是否保持不变
             anchor_deviation = np.linalg.norm(molecule_to_position[anchor_atom].position - original_anchor_pos)
             if anchor_deviation > 1e-10:
-                print(f"警告：调整后锚点偏移了 {anchor_deviation:.10f} Å")
+                print(f"{lang.get_text('warning')}: {lang.get_text('anchor_deviation_after_adjustment_msg')} {anchor_deviation:.10f} Å")
             else:
-                print("调整完成，锚点位置保持不变")
+                print(f"{lang.get_text('adjustment_completed_anchor_unchanged_msg')}")
     
     # 第4步：创建最终吸附系统
     # 合并分子和基底
