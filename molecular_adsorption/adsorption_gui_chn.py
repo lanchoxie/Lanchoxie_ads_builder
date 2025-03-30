@@ -1103,24 +1103,30 @@ class SiteSelectionDialog(QDialog):
             self.clear_filter_elements()
         
     def populate_available_elements(self):
-        """填充可用元素列表，基于当前选择的表面层数"""
+        """填充可用元素列表，基于当前视图模式和表面层数"""
+        # 清空现有列表
+        self.available_elements_list.clear()
+        
         # 获取当前选定的表面层数
         surface_layers = self.surface_layer_spin.value()
         
-        # 获取表面原子
-        surface_indices = find_surface_atoms(self.substrate, surface_layers=surface_layers)
+        # 获取当前的显示模式
+        is_3d_mode = self.view_mode_combo.currentIndex() == 1  # 1表示多层3D模式
         
-        # 获取表面原子的元素
-        symbols = [self.substrate.get_chemical_symbols()[i] for i in surface_indices]
-        unique_elements = sorted(set(symbols))
-        
-        # 清空现有列表
-        self.available_elements_list.clear()
+        if is_3d_mode:
+            # 在3D模式下，显示substrate中的所有元素
+            symbols = self.substrate.get_chemical_symbols()
+            unique_elements = sorted(set(symbols))
+        else:
+            # 在顶层模式下，只显示表面元素
+            surface_indices = find_surface_atoms(self.substrate, surface_layers=surface_layers)
+            symbols = [self.substrate.get_chemical_symbols()[i] for i in surface_indices]
+            unique_elements = sorted(set(symbols))
         
         # 添加元素到列表
         for element in unique_elements:
             self.available_elements_list.addItem(element)
-    
+            
     def add_filter_element(self):
         """添加选定的元素到筛选列表"""
         current_item = self.available_elements_list.currentItem()
@@ -1596,10 +1602,12 @@ class SiteSelectionDialog(QDialog):
         # 记录一下当前的层数值
         current_layers = self.surface_layer_spin.value()
         
-        # 清除筛选条件和当前选择的位点
-        if hasattr(self, 'filtered_sites'):
-            self.filtered_sites = []
-        self.clear_filter_elements()
+        # 完全重置状态：清除筛选元素、位点和筛选后的位点
+        self.clear_filter_elements()  # 清除筛选元素
+        self.sites = []  # 重置位点列表
+        self.site_elements = []  # 重置位点元素列表
+        self.filtered_sites = []  # 重置筛选后的位点
+        self.filtered_site_elements = []  # 重置筛选后的位点元素
         
         # 如果是从3D模式切换到传统模式，确保层数设置合理
         if index == 0 and current_layers > 3:  # 传统模式且层数大于3
@@ -1607,7 +1615,9 @@ class SiteSelectionDialog(QDialog):
             self.surface_layer_spin.setValue(1)
             # 设置值会触发surface_layers_changed，它会调用plot_substrate_and_sites
         else:
-            # 直接重绘位点
+            # 更新可用元素列表以匹配当前视图模式
+            self.populate_available_elements()
+            # 重新计算并显示位点 - 这将基于新的视图模式重新生成所有位点
             self.plot_substrate_and_sites()
 
 class AtomSelectionDialog(QDialog):
@@ -4244,13 +4254,27 @@ class AdsorptionGUI(QMainWindow):
 
     def batch_site_process(self):
         """处理批量位点选择"""
-        try:
-            from batch_dialogs import BatchSiteSelectionDialog
-        except ImportError:
-            from .batch_dialogs import BatchSiteSelectionDialog
+        if __name__ == "__main__":
+            # 添加父目录到模块搜索路径
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+            try:
+                from molecular_adsorption.batch_dialogs import BatchSiteSelectionDialog
+            except ImportError:
+                # 直接从本目录导入
+                sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+                from batch_dialogs import BatchSiteSelectionDialog
+        else:
+            try:
+                # 尝试相对导入
+                from .batch_dialogs import BatchSiteSelectionDialog
+            except ImportError:
+                # 尝试绝对导入
+                from molecular_adsorption.batch_dialogs import BatchSiteSelectionDialog
             
         if self.substrate is None:
-            QMessageBox.warning(self, "警告", "请先加载基底结构")
+            QMessageBox.warning(self, "警告", "请先加载基底")
             return
             
         # 创建对话框
@@ -4386,7 +4410,7 @@ class AdsorptionGUI(QMainWindow):
                     # 保存JSON状态
                     if export_options['export_json']:
                         json_file = os.path.join(state_dir, f"{base_filename}_state.json")
-                        self.mute_export_json(json_file)
+                        self.mute_export_json(json_file, site_pos.tolist())
                         print(f"保存状态到: {json_file}")
                     
                     # 更新进度
@@ -4405,13 +4429,27 @@ class AdsorptionGUI(QMainWindow):
 
     def batch_anchor_process(self):
         """处理批量锚点选择"""
-        try:
-            from batch_dialogs import BatchAnchorSelectionDialog
-        except ImportError:
-            from .batch_dialogs import BatchAnchorSelectionDialog
+        if __name__ == "__main__":
+            # 添加父目录到模块搜索路径
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+            try:
+                from molecular_adsorption.batch_dialogs import BatchAnchorSelectionDialog
+            except ImportError:
+                # 直接从本目录导入
+                sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+                from batch_dialogs import BatchAnchorSelectionDialog
+        else:
+            try:
+                # 尝试相对导入
+                from .batch_dialogs import BatchAnchorSelectionDialog
+            except ImportError:
+                # 尝试绝对导入
+                from molecular_adsorption.batch_dialogs import BatchAnchorSelectionDialog
             
         if self.molecule is None:
-            QMessageBox.warning(self, "警告", "请先加载分子结构")
+            QMessageBox.warning(self, "警告", "请先加载分子")
             return
             
         if self.selected_site is None:
@@ -4548,7 +4586,7 @@ class AdsorptionGUI(QMainWindow):
                     # 保存JSON状态
                     if export_options['export_json']:
                         json_file = os.path.join(state_dir, f"{base_filename}_state.json")
-                        self.mute_export_json(json_file)
+                        self.mute_export_json(json_file, anchor)
                         print(f"保存状态到: {json_file}")
                     
                     # 更新进度
@@ -4567,13 +4605,31 @@ class AdsorptionGUI(QMainWindow):
 
     def batch_path_process(self):
         """处理批量路径插值"""
-        try:
-            from batch_dialogs import BatchPathDialog
-        except ImportError:
-            from .batch_dialogs import BatchPathDialog
+        if __name__ == "__main__":
+            # 添加父目录到模块搜索路径
+            parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+            try:
+                from molecular_adsorption.batch_dialogs import BatchPathDialog
+            except ImportError:
+                # 直接从本目录导入
+                sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+                from batch_dialogs import BatchPathDialog
+        else:
+            try:
+                # 尝试相对导入
+                from .batch_dialogs import BatchPathDialog
+            except ImportError:
+                # 尝试绝对导入
+                from molecular_adsorption.batch_dialogs import BatchPathDialog
             
-        if self.substrate is None or self.molecule is None:
-            QMessageBox.warning(self, "警告", "请先加载基底和分子")
+        if self.molecule is None:
+            QMessageBox.warning(self, "警告", "请先加载分子")
+            return
+            
+        if self.selected_site is None:
+            QMessageBox.warning(self, "警告", "请先选择吸附位点")
             return
             
         # 创建对话框
@@ -4733,7 +4789,7 @@ class AdsorptionGUI(QMainWindow):
                         # 保存JSON状态
                         if export_options['export_json']:
                             json_file = os.path.join(state_dir, f"{base_filename}_state.json")
-                            self.mute_export_json(json_file)
+                            self.mute_export_json(json_file, anchor1 if t < 0.5 else anchor2, interpolated_site.tolist(), x_offset, y_offset, x_angle, y_angle, z_angle, height, self.vacuum.value())
                             print(f"保存状态到: {json_file}")
 
                         # 更新进度
@@ -4786,23 +4842,34 @@ class AdsorptionGUI(QMainWindow):
             
         QMessageBox.information(self, "成功", f"图片已保存到 {output_dir} 目录")
 
-    def mute_export_json(self, json_file):
+    def mute_export_json(self, json_file, anchor=None, site=None, x_offset=None, y_offset=None, x_angle=None, y_angle=None, z_angle=None, height=None, vacuum=None):
         """导出当前吸附配置状态为JSON文件，不进行目录管理"""
         if not hasattr(self, 'substrate') or self.substrate is None:
             return
         try:
             import json
+
+
+            height=height if height is not None else self.height.value()
+            vacuum =  vacuum if vacuum is not None else self.vacuum.value()
+            site=site if site is not None else self.selected_site
+            anchor=anchor if anchor is not None else self.anchor.value()
+            x_offset=x_offset if x_offset is not None else self.x_offset
+            y_offset=y_offset if y_offset is not None else self.y_offset
+            x_angle=x_angle if x_angle is not None else self.x_slider.value()
+            y_angle=y_angle if y_angle is not None else self.y_slider.value()
+            z_angle=z_angle if z_angle is not None else self.z_slider.value()
             
             # 计算分数坐标
             fractional_coord = None
             if hasattr(self, 'selected_site') and self.selected_site is not None and hasattr(self, 'substrate'):
                 cell = self.substrate.get_cell()
                 # 转换x,y,z坐标到分数坐标
-                cart_pos = np.array([self.selected_site[0], self.selected_site[1], self.selected_site[2]])
+                cart_pos = np.array([site[0], site[1], site[2]])
                 # 创建3x3的坐标变换矩阵（考虑x,y,z三个方向）
                 transform_matrix = np.linalg.inv(cell)[:3, :3]
                 # 使用完整的xyz坐标
-                xyz_pos = xyz_pos = np.array([self.selected_site[0], self.selected_site[1], self.selected_site[2]])
+                xyz_pos = np.array([site[0], site[1], site[2]])
                 frac_xyz = np.dot(transform_matrix, xyz_pos)
                 fractional_coord = frac_xyz.tolist()
             
@@ -4825,25 +4892,25 @@ class AdsorptionGUI(QMainWindow):
                 "substrate_file_path": self.substrate_file if hasattr(self, 'substrate_file') else None,
                 "molecule_file_path": self.molecule_file if hasattr(self, 'molecule_file') else None,
                 "adsorption_site_type": self.site_combo.currentText().lower(),
-                "adsorption_coord_cartesian": list(self.selected_site) if hasattr(self, 'selected_site') else None,  # 保存完整的x,y,z坐标
+                "adsorption_coord_cartesian": list(site) if hasattr(self, 'selected_site') else None,  # 保存完整的x,y,z坐标
                 "adsorption_coord_fractional": fractional_coord,
-                "adsorption_distance": self.height.value(),
-                "vacuum_thickness": self.vacuum.value(),
+                "adsorption_distance": height,
+                "vacuum_thickness": vacuum,
                 "anchor_style": anchor_style_str,
                 "keep_vertical_enabled": self.keep_vertical.isChecked() if hasattr(self, 'keep_vertical') else False,
                 
                 # 保存旋转信息
                 "rotation": {
                     # 角度值，便于人类阅读
-                    "x": self.x_slider.value(),
-                    "y": self.y_slider.value(),
-                    "z": self.z_slider.value(),
+                    "x": x_angle,
+                    "y": y_angle,
+                    "z": z_angle,
                 },
                 
                 # 保存偏移量信息
                 "offset": {
-                    "x": self.x_offset,
-                    "y": self.y_offset
+                    "x": x_offset,
+                    "y": y_offset
                 }
             }
 

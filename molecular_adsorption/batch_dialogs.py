@@ -6,7 +6,58 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QWidget,
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 import numpy as np
-from .adsorption_gui import MplCanvas, ELEMENT_COLORS, DEFAULT_COLOR
+import os
+import sys
+import importlib.util
+
+# 判断脚本运行环境来决定导入方式
+if __name__ == "__main__":
+    # 当直接运行时
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+    
+    # 尝试导入英文版组件
+    try:
+        from molecular_adsorption.adsorption_gui_eng import MplCanvas, ELEMENT_COLORS
+        DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+    except ImportError:
+        # 尝试导入中文版组件
+        try:
+            from molecular_adsorption.adsorption_gui_chn import MplCanvas, ELEMENT_COLORS
+            DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+        except ImportError:
+            # 尝试直接导入模块
+            try:
+                import molecular_adsorption.adsorption_gui_eng as gui_mod
+                MplCanvas = gui_mod.MplCanvas
+                ELEMENT_COLORS = gui_mod.ELEMENT_COLORS
+                DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+            except ImportError:
+                try:
+                    import molecular_adsorption.adsorption_gui_chn as gui_mod
+                    MplCanvas = gui_mod.MplCanvas
+                    ELEMENT_COLORS = gui_mod.ELEMENT_COLORS
+                    DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+                except ImportError:
+                    # 最后尝试本地导入
+                    try:
+                        from adsorption_gui_eng import MplCanvas, ELEMENT_COLORS
+                        DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+                    except ImportError:
+                        from adsorption_gui_chn import MplCanvas, ELEMENT_COLORS
+                        DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+else:
+    # 当作为模块导入时
+    try:
+        # 尝试相对导入英文版
+        from .adsorption_gui_eng import MplCanvas, ELEMENT_COLORS
+        DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+    except ImportError:
+        # 尝试相对导入中文版
+        from .adsorption_gui_chn import MplCanvas, ELEMENT_COLORS
+        DEFAULT_COLOR = '#CCCCCC'  # 灰色作为默认色
+
 from ase.data import covalent_radii
 
 # 定义共价半径字典

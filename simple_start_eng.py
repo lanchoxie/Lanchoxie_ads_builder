@@ -20,9 +20,9 @@ try:
     # 直接运行脚本文件
     script_path = os.path.join(current_dir, "molecular_adsorption", "adsorption_gui_eng.py")
     
-    # 先修改工作目录到脚本所在位置
-    original_dir = os.getcwd()
-    os.chdir(os.path.dirname(script_path))
+    # 不修改工作目录，保持在项目根目录
+    # original_dir = os.getcwd()
+    # os.chdir(os.path.dirname(script_path))
     
     # 执行脚本
     with open(script_path, 'r', encoding='utf-8') as f:
@@ -36,8 +36,8 @@ try:
     
     exec(script_code, namespace)
     
-    # 恢复工作目录
-    os.chdir(original_dir)
+    # 不需要恢复工作目录
+    # os.chdir(original_dir)
     
 except ImportError as e:
     print(f"错误: 无法导入GUI模块: {e}")
