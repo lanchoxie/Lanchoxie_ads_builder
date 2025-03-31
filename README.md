@@ -4,6 +4,9 @@
     <img src="molecular_adsorption/figs/main.png" alt="软件界面" width="600">
 </div>
 
+English Version is avalaible here : 
+[English Documentation](molecular_adsorption/README_EN.md
+
 ## 简介
 
 这是一个用于模拟和可视化分子在表面吸附过程的图形界面工具。它允许用户导入基底和分子结构，选择吸附位点，调整吸附构型，并导出结果。该工具特别适用于催化、材料科学和表面化学等研究领域。
@@ -21,23 +24,22 @@
 
 ## 安装
 
-### 依赖环境
-
-- Python 3.7 或更高版本
-- PyQt5
-- ASE (Atomic Simulation Environment)
-- NumPy
-- SciPy
-- Matplotlib
+### 推荐python版本
+- Python 3.9
 
 ### 安装步骤
 
-1. 安装Python环境（推荐使用Anaconda或Miniconda）
-
-2. 安装依赖包：
+1. 安装Python环境
 
 ```bash
-pip install numpy scipy matplotlib ase pyqt5
+python -m venv adsorption
+.\adsorption\Scripts\Activate.ps1
+```
+
+3. 安装依赖包：
+
+```bash
+pip install -r requirements -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ## 使用方法
