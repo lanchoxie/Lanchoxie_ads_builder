@@ -18,18 +18,8 @@ pip install -r requirements.txt
 
 ### Launch Program
 
-1.
 ```bash
 python start.py
-```
-
-2.
-```bash
-# Enter program directory
-cd molecular_adsorption
-
-# Start GUI
-python adsorption_gui.py
 ```
 
 ## Features
