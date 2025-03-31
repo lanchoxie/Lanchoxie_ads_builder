@@ -13,16 +13,12 @@ source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate  # Windows
 
 # 安装依赖包
-pip install -r requirements.txt
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 ### 启动程序
 ```bash
-# 进入程序目录
-cd molecular_adsorption
-
-# 启动图形界面
-python adsorption_gui.py
+python start.py
 ```
 
 ## 功能特点
