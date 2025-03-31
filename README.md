@@ -6,7 +6,7 @@
 
 English Version is avalaible here : 
 
-[English Documentation](molecular_adsorption/README_EN.md)
+[English Documentation](molecular_adsorption/README_ENGLISH.md)
 
 ## 简介
 
@@ -82,8 +82,8 @@ python simple_start_eng.py
 
 更详细的使用说明和文档，请参阅：
 
-- [中文使用手册](molecular_adsorption/README_CN.md)
-- [English Documentation](molecular_adsorption/README_EN.md)
+- [中文使用手册](molecular_adsorption/README.md)
+- [English Documentation](molecular_adsorption/README_ENGLISH.md)
 
 ## 工作流程
 
