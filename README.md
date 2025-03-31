@@ -21,8 +21,6 @@ English Version is avalaible here :
 - `simple_start_eng.py` - 英文版直接启动文件
 - `molecular_adsorption/` - 主程序目录
 
-**注意**: 项目目录中可能有其他文件，但它们与本工具无关。
-
 ## 安装
 
 ### 推荐python版本
@@ -34,7 +32,7 @@ English Version is avalaible here :
 
 ```bash
 python -m venv adsorption
-.\adsorption\Scripts\Activate.ps1
+.\adsorption\Scripts\activate
 ```
 
 3. 安装依赖包：
